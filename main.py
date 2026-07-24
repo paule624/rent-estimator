@@ -1,7 +1,5 @@
 import os
-import sys
 import argparse
-import subprocess
 
 import questionary
 
@@ -203,10 +201,6 @@ def main():
 
     chemin = os.path.abspath(CSV_DEALS)
     print(f"\n→ Détail complet + liens : {chemin}")
-    try:
-        subprocess.run(["open", chemin], check=False)
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":
