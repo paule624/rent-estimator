@@ -47,9 +47,12 @@ Run `python main.py` if you prefer not to install the package.
 
 ## Extras
 
-- **Notifications** — new deals or price drops trigger a native macOS
-  notification, and a Telegram message if `TELEGRAM_TOKEN` and
-  `TELEGRAM_CHAT_ID` are set in the environment.
+- **Notifications** — at startup you pick a channel (terminal, macOS,
+  Telegram, Email, or Discord); new deals or price drops are then pushed
+  there. Remote channels read credentials from the environment:
+  - Telegram: `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
+  - Email: `EMAIL_FROM`, `EMAIL_PASSWORD`, `EMAIL_TO` (opt.), `SMTP_HOST`/`SMTP_PORT` (opt.)
+  - Discord: `DISCORD_WEBHOOK` (simplest — just paste a webhook URL)
 - **History** — each run appends to `historique.csv`; the next run diffs
   against it to detect new listings and price drops.
 - **Detail cache** — Ouest-France detail pages are cached in `cache_of.json`

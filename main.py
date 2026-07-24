@@ -4,7 +4,7 @@ import subprocess
 from scrap import run_scraping
 from model import nettoyage_donnees, model_entrainement, bon_plan
 import historique
-from notif import notifier_deals
+import notif
 
 CSV_DEALS = "Appartement_interessant.csv"
 
@@ -21,6 +21,16 @@ def demander(question, defaut, cast=str):
         return defaut
 
 
+def demander_canal(defaut="1"):
+    """Menu de choix du canal de notification."""
+    print("\nOù recevoir les nouveaux bons plans à la fin ?")
+    for k, (_, label) in notif.CANAUX.items():
+        print(f"  {k}) {label}")
+    choix = input(f"Choix [{defaut}] : ").strip() or defaut
+    canal = notif.CANAUX.get(choix, notif.CANAUX[defaut])[0]
+    return canal
+
+
 def recolte_parametres():
     """Args CLI si fournis, sinon questions interactives."""
     p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
@@ -28,6 +38,8 @@ def recolte_parametres():
     p.add_argument("--km", type=int)
     p.add_argument("--max", type=int, dest="prix_max")
     p.add_argument("--surface-min", type=int, dest="surface_min")
+    p.add_argument("--notif", choices=["terminal", "macos", "telegram", "email", "discord"],
+                   help="Canal de notification (saute la question)")
     a = p.parse_args()
 
     # Mode interactif : on ne demande que ce qui n'a pas été passé en argument
@@ -36,8 +48,10 @@ def recolte_parametres():
     km = a.km if a.km is not None else demander("Rayon (km)", 10, int)
     prix_max = a.prix_max if a.prix_max is not None else demander("Budget max (€/mois)", 700, int)
     surface_min = a.surface_min if a.surface_min is not None else demander("Surface mini (m²)", 33, int)
+    canal = a.notif if a.notif is not None else demander_canal()
+    notif.verifier_canal(canal)  # prévient si le canal choisi n'est pas configuré
     print()
-    return ville, km, prix_max, surface_min
+    return ville, km, prix_max, surface_min, canal
 
 
 def afficher_deals(deals):
@@ -60,7 +74,7 @@ def afficher_deals(deals):
 
 
 def main():
-    ville, km, prix_max, surface_min = recolte_parametres()
+    ville, km, prix_max, surface_min, canal = recolte_parametres()
 
     print(f"1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
     fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
@@ -83,7 +97,7 @@ def main():
     nouveaux, baisses = historique.detecter(deals, hist)
     if len(nouveaux) or len(baisses):
         print(f"\n🔔 {len(nouveaux)} nouveau(x) · {len(baisses)} baisse(s) depuis le dernier run")
-        notifier_deals(nouveaux, baisses)
+        notif.notifier_deals(nouveaux, baisses, canal=canal)
     historique.sauver(deals, hist)
 
     chemin = os.path.abspath(CSV_DEALS)
