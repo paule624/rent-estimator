@@ -1,183 +1,63 @@
-Prix,Surface,Arrondissement,Pieces,DPE
-2800.0,70.0,17.0,4,4.0
-3800.0,77.0,6.0,3,4.0
-1219.0,27.0,4.0,1,3.0
-950.0,22.0,18.0,1,
-575.0,53.0,11.0,3,2.0
-1641.0,53.0,14.0,2,3.0
-2310.0,66.0,15.0,3,4.0
-1000.0,20.0,19.0,1,3.0
-2400.0,70.0,11.0,3,4.0
-980.0,24.0,18.0,2,6.0
-900.0,15.0,6.0,1,
-1250.0,27.0,11.0,2,3.0
-2900.0,124.0,16.0,4,3.0
-1120.0,22.0,12.0,1,4.0
-735.0,62.0,13.0,3,7.0
-2300.0,60.0,7.0,2,4.0
-1470.0,37.0,10.0,3,3.0
-3700.0,102.0,9.0,4,4.0
-1450.0,26.0,7.0,1,4.0
-6500.0,145.0,15.0,8,4.0
-1560.0,42.0,19.0,2,3.0
-1550.0,25.0,16.0,1,2.0
-1200.0,33.0,14.0,1,4.0
-1780.0,43.0,15.0,3,6.0
-3500.0,49.0,3.0,2,5.0
-950.0,32.0,20.0,2,3.0
-1100.0,22.0,15.0,1,3.0
-1499.0,41.0,15.0,2,4.0
-2300.0,53.0,15.0,2,3.0
-1645.0,42.0,15.0,2,4.0
-1397.0,30.0,16.0,2,4.0
-807.0,20.0,15.0,1,2.0
-1380.0,52.0,19.0,2,2.0
-1527.0,49.0,15.0,2,3.0
-1850.0,45.0,18.0,2,3.0
-1456.0,51.0,10.0,2,4.0
-2895.0,115.0,16.0,4,4.0
-1760.0,40.0,10.0,2,3.0
-1450.0,45.0,19.0,2,4.0
-700.0,25.0,19.0,1,
-2250.0,56.0,15.0,2,4.0
-860.0,22.0,18.0,1,3.0
-1530.0,26.0,14.0,1,3.0
-1050.0,27.0,17.0,1,4.0
-2106.0,55.0,18.0,3,5.0
-3500.0,74.0,5.0,4,5.0
-2074.0,62.0,15.0,3,3.0
-1491.0,51.0,11.0,2,5.0
-2600.0,54.0,8.0,2,3.0
-1130.0,27.0,9.0,2,3.0
-2727.0,81.0,14.0,3,3.0
-1050.0,16.0,6.0,1,1.0
-1446.0,33.0,15.0,1,5.0
-1050.0,17.0,6.0,1,1.0
-1446.0,33.0,15.0,1,5.0
-2724.0,80.0,15.0,4,4.0
-930.0,17.0,13.0,1,3.0
-1370.0,47.0,19.0,2,5.0
-,,12.0,3,
-1020.0,30.0,1.0,1,
-1195.0,28.0,11.0,1,3.0
-1320.0,27.0,15.0,2,5.0
-1260.0,32.0,20.0,2,2.0
-1650.0,52.0,18.0,3,3.0
-1300.0,30.0,20.0,2,4.0
-1768.0,53.0,17.0,3,3.0
-2420.0,68.0,15.0,4,3.0
-1800.0,49.0,12.0,3,4.0
-3100.0,83.0,12.0,4,
-2140.0,62.0,12.0,3,4.0
-1754.0,55.0,18.0,3,3.0
-1930.0,60.0,12.0,2,
-,35.0,12.0,2,2.0
-1790.0,53.0,16.0,2,
-2359.0,71.0,17.0,3,3.0
-1777.0,47.0,12.0,2,5.0
-4500.0,141.0,17.0,4,4.0
-1600.0,50.0,18.0,3,
-1200.0,41.0,8.0,2,5.0
-1131.0,23.0,9.0,1,3.0
-2500.0,55.0,16.0,2,3.0
-1480.0,40.0,9.0,2,
-5400.0,108.0,15.0,5,4.0
-1500.0,35.0,17.0,2,4.0
-2125.0,67.0,15.0,3,3.0
-1743.0,44.0,15.0,2,
-430.0,9.0,19.0,1,
-1200.0,42.0,12.0,2,
-1890.0,90.0,11.0,3,5.0
-1600.0,44.0,16.0,2,
-850.0,21.0,12.0,1,4.0
-2500.0,78.0,16.0,3,5.0
-1500.0,50.0,7.0,4,3.0
-2437.0,71.0,14.0,3,4.0
-2650.0,55.0,4.0,2,
-2000.0,40.0,18.0,2,
-2250.0,47.0,16.0,2,3.0
-850.0,15.0,15.0,1,
-700.0,18.0,20.0,1,6.0
-2420.0,65.0,15.0,4,
-2300.0,66.0,3.0,3,
-1600.0,15.0,16.0,1,
-450.0,11.0,16.0,1,
-700.0,10.0,17.0,1,
-665.0,64.0,12.0,4,
-800.0,15.0,14.0,4,
-850.0,15.0,13.0,1,
-400.0,,12.0,1,
-890.0,20.0,10.0,1,
-1050.0,12.0,8.0,1,
-2180.0,58.0,14.0,3,
-800.0,13.0,6.0,1,
-1000.0,30.0,19.0,2,
-1290.0,53.0,20.0,3,2.0
-420.0,11.0,9.0,1,7.0
-1187.0,30.0,20.0,1,
-910.0,14.0,3.0,2,3.0
-1240.0,35.0,18.0,1,4.0
-750.0,18.0,,1,4.0
-1150.0,30.0,16.0,1,4.0
-895.0,14.0,4.0,1,4.0
-1450.0,39.0,10.0,2,4.0
-1431.0,33.0,9.0,2,3.0
-780.0,20.0,8.0,1,4.0
-1700.0,45.0,11.0,2,4.0
-1495.0,50.0,15.0,2,3.0
-1690.0,48.0,16.0,3,3.0
-550.0,9.0,17.0,1,4.0
-1270.0,40.0,15.0,2,4.0
-950.0,27.0,18.0,1,3.0
-710.0,17.0,11.0,1,3.0
-1780.0,54.0,15.0,2,3.0
-1400.0,38.0,16.0,2,2.0
-2400.0,43.0,4.0,1,4.0
-1200.0,38.0,15.0,2,4.0
-4830.0,115.0,8.0,4,2.0
-2120.0,76.0,15.0,3,4.0
-1000.0,19.0,17.0,1,4.0
-2200.0,55.0,2.0,3,6.0
-1060.0,15.0,5.0,1,3.0
-1399.0,36.0,8.0,2,4.0
-710.0,11.0,17.0,1,4.0
-1560.0,40.0,14.0,2,7.0
-560.0,12.0,8.0,1,4.0
-3400.0,85.0,15.0,4,4.0
-1320.0,40.0,11.0,2,6.0
-1720.0,41.0,11.0,2,4.0
-1290.0,33.0,17.0,2,3.0
-1165.0,29.0,18.0,2,3.0
-800.0,34.0,10.0,2,4.0
-1600.0,42.0,15.0,2,4.0
-1300.0,33.0,20.0,2,4.0
-940.0,37.0,18.0,2,4.0
-1300.0,40.0,12.0,2,4.0
-550.0,10.0,14.0,1,3.0
-750.0,16.0,15.0,1,3.0
-1160.0,27.0,10.0,2,2.0
-495.0,8.0,11.0,1,3.0
-860.0,16.0,14.0,1,5.0
-1187.0,30.0,20.0,1,7.0
-1088.0,36.0,12.0,2,3.0
-1972.0,55.0,14.0,3,2.0
-1000.0,25.0,18.0,2,4.0
-1267.0,68.0,1.0,1,5.0
-1350.0,41.0,19.0,2,3.0
-850.0,17.0,6.0,1,4.0
-850.0,17.0,6.0,1,4.0
-1090.0,11.0,17.0,1,3.0
-2300.0,64.0,15.0,3,4.0
-1830.0,58.0,15.0,3,3.0
-850.0,21.0,19.0,1,4.0
-968.0,20.0,3.0,1,4.0
-1500.0,34.0,9.0,1,4.0
-1588.0,32.0,16.0,1,4.0
-7500.0,110.0,10.0,5,4.0
-7500.0,110.0,10.0,5,4.0
-1429.0,30.0,4.0,2,2.0
-2056.0,66.0,13.0,3,4.0
-922.0,26.0,12.0,1,4.0
-968.0,25.0,17.0,1,4.0
-750.0,15.0,12.0,1,
-1200.0,30.0,19.0,1,
+Prix,Surface,Commune,Pieces,DPE,Titre,Lien,Source
+1350.0,1002.0,Vannes,4.0,,Maison 1002 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1289476921A1KILHMN000,paruvendu
+1300.0,300.0,Saint-Avé,1.0,,Atelier 300 m2 Saint-Avé (56),https://www.paruvendu.fr/immobilier/location/atelier/1293458767A1KILHAT000,paruvendu
+520.0,83.0,Vannes,2.0,,Location appartement 2 pièces Vannes Ménimur - St-Guen 56 520 € Colocation Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19254463.htm,ouestfrance
+445.0,65.0,Vannes,4.0,,Location Chambre 4 pièces Vannes Kercado - Trussac 56 445 € Colocation Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/chambre-20350962.htm,ouestfrance
+1350.0,150.0,Vannes,4.0,6.0,Maison 150 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1291300267A1KILHMN000,paruvendu
+1025.0,106.0,Plaudren,5.0,7.0,Maison 106 m2 Plaudren (56),https://www.paruvendu.fr/immobilier/location/maison/1291703483A1KILHMN000,paruvendu
+750.0,75.0,Arradon,4.0,5.0,Appartement 75 m2 Arradon (56),https://www.paruvendu.fr/immobilier/location/appartement/1293317298A1KILHAP000,paruvendu
+454.0,45.0,Vannes,2.0,,Duplex/triplex 45 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/duplex-triplex/1290564789A1KILHDU000,paruvendu
+1016.0,98.0,Grand-Champ,5.0,6.0,Appartement 98 m2 Grand-Champ (56),https://www.paruvendu.fr/immobilier/location/appartement/1292789524A1KILHAP000,paruvendu
+760.0,73.0,Vannes,3.0,2.0,Appartement 73 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293102061A1KILHAP000,paruvendu
+870.0,78.0,Vannes,3.0,4.0,Appartement 78 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292802001A1KILHAP000,paruvendu
+1300.0,115.0,Ploeren,4.0,2.0,Maison 115 m2 Ploeren (56),https://www.paruvendu.fr/immobilier/location/maison/1292721670A1KILHMN000,paruvendu
+600.0,53.0,Vannes,3.0,,Location maison 3 pièces Vannes Centre Ville 56 600 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/maison/vannes-56-56260/20422388.htm,ouestfrance
+600.0,53.0,Vannes,3.0,4.0,Maison 53 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293220692A1KILHMN000,paruvendu
+1300.0,114.0,Vannes,6.0,5.0,Maison 114 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293072065A1KILHMN000,paruvendu
+1375.0,120.0,Vannes,7.0,4.0,Maison 120 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293505444A1KILHMN000,paruvendu
+642.0,54.0,Pluneret,3.0,3.0,Appartement 54 m2 Pluneret (56),https://www.paruvendu.fr/immobilier/location/appartement/1293483005A1KILHAP000,paruvendu
+967.0,76.0,Vannes,4.0,4.0,Appartement 76 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293477898A1KILHAP000,paruvendu
+1200.0,94.0,Sarzeau,4.0,5.0,Appartement 94 m2 Sarzeau (56),https://www.paruvendu.fr/immobilier/location/appartement/1288614849A1KILHAP000,paruvendu
+750.0,58.0,Sarzeau,3.0,,Appartement 58 m2 Sarzeau (56),https://www.paruvendu.fr/immobilier/location/appartement/1290642821A1KILHAP000,paruvendu
+670.0,50.0,Elven,2.0,5.0,Appartement 50 m2 Elven (56),https://www.paruvendu.fr/immobilier/location/appartement/1293102065A1KILHAP000,paruvendu
+620.0,46.0,Vannes,2.0,4.0,Appartement 46 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293515115A1KILHAP000,paruvendu
+620.0,46.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 620 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20400303.htm,ouestfrance
+1260.0,89.0,Surzur,5.0,4.0,Maison 89 m2 Surzur (56),https://www.paruvendu.fr/immobilier/location/maison/1293102071A1KILHMN000,paruvendu
+540.0,38.0,Vannes,2.0,,Appartement 38 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292888489A1KILHAP000,paruvendu
+550.0,38.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 550 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20456909.htm,ouestfrance
+360.0,24.0,Vannes,,,Location appartement 1 pièce Vannes 56 360 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-20451668.htm,ouestfrance
+675.0,44.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 675 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20012968.htm,ouestfrance
+983.0,64.0,Vannes,3.0,4.0,Appartement 64 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292856988A1KILHAP000,paruvendu
+890.0,57.0,Vannes,3.0,3.0,Appartement 57 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293505446A1KILHAP000,paruvendu
+595.0,38.0,Vannes,2.0,,Location appartement 2 pièces Vannes Vincin 56 595 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20455963.htm,ouestfrance
+705.0,45.0,Vannes,2.0,5.0,Appartement 45 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293330116A1KILHAP000,paruvendu
+690.0,44.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 690 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19597800.htm,ouestfrance
+630.0,40.0,Plescop,2.0,,Location appartement 2 pièces Plescop 56 630 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/plescop-56-56158/2-pieces-20388196.htm,ouestfrance
+815.0,51.0,Séné,3.0,4.0,Maison 51 m2 Séné (56),https://www.paruvendu.fr/immobilier/location/maison/1291665236A1KILHMN000,paruvendu
+695.0,43.0,Elven,2.0,4.0,Appartement 43 m2 Elven (56),https://www.paruvendu.fr/immobilier/location/appartement/1293469087A1KILHAP000,paruvendu
+580.0,35.0,,2.0,4.0,Appartement 35 m2,https://www.paruvendu.fr/immobilier/location/appartement/1292005394A1KILHAP000,paruvendu
+1000.0,60.0,Sarzeau,4.0,4.0,Maison 60 m2 Sarzeau (56),https://www.paruvendu.fr/immobilier/location/maison/1293238772A1KILHMN000,paruvendu
+635.0,38.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 635 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20409287.htm,ouestfrance
+950.0,55.0,Vannes,3.0,,Appartement 55 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293469085A1KILHAP000,paruvendu
+450.0,25.0,Saint Ave,,,Location appartement 1 pièce Saint-Avé 56 450 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/saint-ave-56-56206/t1-20375412.htm,ouestfrance
+470.0,26.0,Sene,,,Location Studio 1 pièce Séné 56 470 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/sene-56-56243/studio-20404007.htm,ouestfrance
+895.0,47.0,Vannes,2.0,5.0,Appartement 47 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293114908A1KILHAP000,paruvendu
+500.0,26.0,Vannes,1.0,3.0,Appartement 26 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293505445A1KILHAP000,paruvendu
+750.0,39.0,Vannes,2.0,3.0,Appartement 39 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292562568A1KILHAP000,paruvendu
+350.0,18.0,Saint Ave,,,Location appartement 1 pièce Saint-Avé 56 350 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/saint-ave-56-56206/t1-20441572.htm,ouestfrance
+350.0,18.0,Saint-Avé,1.0,6.0,Appartement 18 m2 Saint-Avé (56),https://www.paruvendu.fr/immobilier/location/appartement/1293373040A1KILHAP000,paruvendu
+710.0,36.0,Vannes,2.0,4.0,Appartement 36 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293330115A1KILHAP000,paruvendu
+655.0,33.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 655 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19563644.htm,ouestfrance
+655.0,33.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 655 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19563644.htm,ouestfrance
+620.0,31.0,Theix Noyalo,2.0,,Location appartement 2 pièces Theix 56 620 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/theix-noyalo-56-56251/2-pieces-20315951.htm,ouestfrance
+520.0,25.0,Vannes,,,Location appartement 1 pièce Vannes 56 520 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-18703700.htm,ouestfrance
+760.0,36.0,Vannes,2.0,5.0,Appartement 36 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293072069A1KILHAP000,paruvendu
+398.0,18.0,Vannes,,,Location appartement 1 pièce Vannes Vincin 56 398 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-20379419.htm,ouestfrance
+611.0,27.0,Vannes,,,Location appartement 1 pièce Vannes 56 611 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-19688665.htm,ouestfrance
+500.0,20.0,Arradon,,,Location appartement 1 pièce Arradon 56 500 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/arradon-56-56003/t1-20398632.htm,ouestfrance
+470.0,17.0,Sainte-Anne-d'Auray,2.0,3.0,Appartement 17 m2 Sainte-Anne-d'Auray (56),https://www.paruvendu.fr/immobilier/location/appartement/1282630749A1KILHAP000,paruvendu
+700.0,25.0,Arradon,2.0,5,700 € Arradon (56610) à 6km de Vannes 2 pièces 1 chambre 25 m²,https://www.pap.fr/annonces/appartement-arradon-56610-r464101426,pap
+610.0,20.0,Vannes,,,Location Studio 1 pièce Vannes 56 610 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/studio-20424585.htm,ouestfrance
+620.0,19.0,Vannes,,,Location appartement 1 pièce Vannes Centre Ville 56 620 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-20383168.htm,ouestfrance
+350.0,10.0,Sene,,,Location Chambre 1 pièce Séné 56 350 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/sene-56-56243/chambre-20177286.htm,ouestfrance
+400.0,10.0,Vannes,2.0,,Location appartement 2 pièces Vannes Ménimur - St-Guen 56 400 € Colocation Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19930561.htm,ouestfrance
