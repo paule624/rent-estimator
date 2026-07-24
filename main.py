@@ -3,23 +3,42 @@ from scrap import run_scraping
 from model import nettoyage_donnees, model_entrainement, bon_plan
 
 
-def parse_args():
-    p = argparse.ArgumentParser(
-        description="Détecteur de locations sous-cotées dans une ville française.")
-    p.add_argument("--ville", default="Vannes", help="Ville de recherche (ex: Vannes, Auray, Rennes)")
-    p.add_argument("--km", type=int, default=10, help="Rayon autour de la ville, en km (défaut 10)")
-    p.add_argument("--max", type=int, default=700, dest="prix_max",
-                   help="Budget max des annonces retenues, en €/mois (défaut 700)")
-    p.add_argument("--surface-min", type=int, default=33, dest="surface_min",
-                   help="Surface minimale des bons plans, en m² (défaut 33)")
-    return p.parse_args()
+def demander(question, defaut, cast=str):
+    """Pose une question, renvoie la réponse castée. Entrée vide = valeur par défaut."""
+    rep = input(f"{question} [{defaut}] : ").strip()
+    if not rep:
+        return defaut
+    try:
+        return cast(rep)
+    except ValueError:
+        print(f"  ! valeur invalide, on garde {defaut}")
+        return defaut
+
+
+def recolte_parametres():
+    """Args CLI si fournis, sinon questions interactives."""
+    p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
+    p.add_argument("--ville")
+    p.add_argument("--km", type=int)
+    p.add_argument("--max", type=int, dest="prix_max")
+    p.add_argument("--surface-min", type=int, dest="surface_min")
+    a = p.parse_args()
+
+    # Mode interactif : on ne demande que ce qui n'a pas été passé en argument
+    print("=== Rent Estimator — Détecteur de bons plans location ===\n")
+    ville = a.ville if a.ville is not None else demander("Ville", "Vannes")
+    km = a.km if a.km is not None else demander("Rayon (km)", 10, int)
+    prix_max = a.prix_max if a.prix_max is not None else demander("Budget max (€/mois)", 700, int)
+    surface_min = a.surface_min if a.surface_min is not None else demander("Surface mini (m²)", 33, int)
+    print()
+    return ville, km, prix_max, surface_min
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    ville, km, prix_max, surface_min = recolte_parametres()
 
-    print(f"1. Web scraping — {args.ville}, {args.km}km, ≤{args.prix_max}€...")
-    fichier = run_scraping(ville=args.ville, km=args.km, prix_max=args.prix_max)
+    print(f"1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
+    fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
 
     if fichier:
         print("\n2. Nettoyage des données...")
@@ -29,6 +48,7 @@ if __name__ == "__main__":
         model, x, y = model_entrainement(df)
 
         print("\n4. Export des opportunités sous-évaluées...")
-        bon_plan(model, x, y, df, budget_max=args.prix_max, surface_min=args.surface_min)
+        bon_plan(model, x, y, df, budget_max=prix_max, surface_min=surface_min)
 
         print("\nPipeline exécuté avec succès !")
+        print("→ Résultats dans Appartement_interessant.csv")
