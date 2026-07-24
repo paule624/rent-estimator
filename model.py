@@ -75,7 +75,7 @@ def model_entrainement(df):
 
     return model, x, y
 
-def bon_plan(model, x, y, df):
+def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
     df = df.copy()
     cv = min(5, len(df))  # évite de crasher si peu d'annonces
     y_pred_log = cross_val_predict(model, x, y, cv=cv)
@@ -84,13 +84,13 @@ def bon_plan(model, x, y, df):
     print(f"R²  : {r2_score(df['Prix'], df['Estimation']):.3f}")
     df["Decote"] = ((df["Prix"] - df["Estimation"]) / df["Estimation"])*100
     df = df[df["Decote"] <= -15]                  # sous-coté d'au moins 15 %
-    if BUDGET_MAX is not None:
-        df = df[df["Prix"] <= BUDGET_MAX]         # payable pour ton budget
-    if SURFACE_MIN is not None:
-        df = df[df["Surface"] >= SURFACE_MIN]     # assez grand (vire les micro-studios)
+    if budget_max is not None:
+        df = df[df["Prix"] <= budget_max]         # payable pour ton budget
+    if surface_min is not None:
+        df = df[df["Surface"] >= surface_min]     # assez grand (vire les micro-studios)
     df = df.sort_values(by=["Decote"], ascending=True)
     df.to_csv("Appartement_interessant.csv", index=False)
-    print(f"{len(df)} bon(s) plan(s) ≤ {BUDGET_MAX}€ et ≥ {SURFACE_MIN}m² exporté(s).")
+    print(f"{len(df)} bon(s) plan(s) ≤ {budget_max}€ et ≥ {surface_min}m² exporté(s).")
 
     return 'csv créée'
 

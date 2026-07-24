@@ -1,38 +1,68 @@
 import re
+import json
+import unicodedata
+import urllib.parse
+import urllib.request
 import pandas as pd
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
+# ─────────────────────────────────────────────────────────────
+# CONFIG
+DEBUG_LOCALISATION = False
+USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+              '(KHTML, Gecko) Chrome/144.0.0.0 Safari/537.36')
+COLONNES = ["Prix", "Surface", "Commune", "Pieces", "DPE", "Titre", "Lien", "Source"]
 DPE_MAP = {'A': 7, 'B': 6, 'C': 5, 'D': 4, 'E': 3, 'F': 2, 'G': 1}
+
+# Préfixe département, fixé au runtime par run_scraping (ex "56" pour le Morbihan).
+# Sert à extraire la commune depuis le texte des annonces.
+CP_PREFIXE = "56"
+# ─────────────────────────────────────────────────────────────
+
 
 def _num(txt):
     if not txt:
         return None
-    m = re.search(r"\d+(?:[.,]\d+)?", txt.replace(" ", "").replace(" ", ""))
+    m = re.search(r"\d+(?:[.,]\d+)?", txt.replace(" ", "").replace(" ", ""))
     return float(m.group(0).replace(",", ".")) if m else None
 
-# ─────────────────────────────────────────────────────────────
-# CONFIG — Vannes + ~10 km (Morbihan 56)
-#
-# Colle pour chaque site l'URL EXACTE d'une recherche faite dans
-# ton navigateur (location, Vannes + rayon). Mets None pour
-# désactiver une source. Ne pas inclure le paramètre de page.
-# ─────────────────────────────────────────────────────────────
-PARUVENDU_URL = (
-    "https://www.paruvendu.fr/immobilier/recherche/location/vannes-56000/"
-    "?rechpv=1&tt=5&tbApp=1&tbDup=1&tbChb=1&tbLof=1&tbAtl=1&tbPla=1"
-    "&tbMai=1&tbVil=1&tbCha=1&tbPro=1&tbHot=1&tbMou=1&tbFer=1"
-    "&pa=FR&lol=15&ray=10&codeINSEE=56260"
-)
-PAP_URL = "https://www.pap.fr/annonce/location-appartement-garage-parking-location-accession-maison-mobil-home-peniche-vannes-56000-g28674-jusqu-a-700-euros"
-OUESTFRANCE_URL = "https://www.ouestfrance-immo.com/louer/vannes-56-56000/?prix=0_700&rayon=10&types=appartement,maison"
 
-CP_PREFIXE = "56"          # codes postaux Morbihan
-DEBUG_LOCALISATION = False # True = affiche le texte brut des 1res annonces
-USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-              '(KHTML, Gecko) Chrome/144.0.0.0 Safari/537.36')
+def _slug(nom):
+    s = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
-COLONNES = ["Prix", "Surface", "Commune", "Pieces", "DPE", "Titre", "Lien", "Source"]
+
+def resoudre_ville(nom):
+    """Résout un nom de ville en (nom officiel, code INSEE, code postal, département)
+    via l'API gratuite geo.api.gouv.fr."""
+    url = ("https://geo.api.gouv.fr/communes?nom=" + urllib.parse.quote(nom) +
+           "&fields=nom,code,codesPostaux&boost=population&limit=1")
+    with urllib.request.urlopen(url, timeout=15) as r:
+        data = json.load(r)
+    if not data:
+        raise ValueError(f"Ville introuvable via l'API : {nom!r}")
+    c = data[0]
+    return c["nom"], c["code"], c["codesPostaux"][0], c["code"][:2]
+
+
+def build_urls(nom, km, prix_max):
+    """Construit les URLs de recherche paruvendu + Ouest-France pour une ville."""
+    nom_off, insee, cp, dept = resoudre_ville(nom)
+    slug = _slug(nom_off)
+    # paruvendu : pas de plafond prix → le modèle voit tout le marché (contexte)
+    paruvendu = (
+        f"https://www.paruvendu.fr/immobilier/recherche/location/{slug}-{cp}/"
+        f"?rechpv=1&tt=5&tbApp=1&tbDup=1&tbChb=1&tbLof=1&tbAtl=1&tbPla=1"
+        f"&tbMai=1&tbVil=1&tbCha=1&tbPro=1&tbHot=1&tbMou=1&tbFer=1"
+        f"&pa=FR&lol=15&ray={km}&codeINSEE={insee}"
+    )
+    # Ouest-France : plafonné au budget (borne le nb de pages détail à visiter)
+    ouestfrance = (
+        f"https://www.ouestfrance-immo.com/louer/{slug}-{dept}-{cp}/"
+        f"?prix=0_{prix_max}&rayon={km}&types=appartement,maison"
+    )
+    return nom_off, dept, paruvendu, ouestfrance
 
 
 # ═════════════════════════════════════════════════════════════
@@ -41,26 +71,21 @@ COLONNES = ["Prix", "Surface", "Commune", "Pieces", "DPE", "Titre", "Lien", "Sou
 def _pv_DPE(card, liste_DPE):
     try:
         dpe_element = card.locator('span[class*="NoteEnerg_"]').first
-        dpe_text = None
-        if dpe_element.count() > 0:
-            dpe_text = dpe_element.inner_text().strip()
-        liste_DPE.append(dpe_text)
+        liste_DPE.append(dpe_element.inner_text().strip() if dpe_element.count() > 0 else None)
     except Exception:
         liste_DPE.append(None)
 
 def _pv_pieces(card, liste_pieces):
     try:
         piece = card.locator("li.text-xs.text-grey-600.py-1.px-2.border-1.border-grey-50.rounded-xl.bg-grey-50.font-normal").first.inner_text(timeout=500)
-        motif_piece = r"[-+]?\d+(?:[.,]\d+)?(?=\s*(?:pièce|piece|pièces|pieces))"
-        piece_text = re.findall(motif_piece, piece)
+        piece_text = re.findall(r"[-+]?\d+(?:[.,]\d+)?(?=\s*(?:pièce|piece|pièces|pieces))", piece)
         liste_pieces.append(int(piece_text[0]) if piece_text else None)
     except Exception:
         liste_pieces.append(None)
 
 def _pv_prix(card, liste_prix):
     try:
-        prix = card.locator('div.encoded-lnk').inner_text().strip(" ")
-        prix = re.sub(r"\s+", "", prix)
+        prix = re.sub(r"\s+", "", card.locator('div.encoded-lnk').inner_text().strip(" "))
         prix_texte = re.findall(r"[-+]?\d+(?:\.\d+)?", prix)
         liste_prix.append(float(prix_texte[0]) if prix_texte else None)
     except Exception:
@@ -68,9 +93,8 @@ def _pv_prix(card, liste_prix):
 
 def _pv_surface(card, liste_surface):
     try:
-        motif_surface = r"[-+]?\d+(?:[.,]\d+)?(?=\s*(?:m2|m²))"
         surface = card.locator('a.hover\\:no-underline').first.inner_text()
-        surface_texte = re.findall(motif_surface, surface)
+        surface_texte = re.findall(r"[-+]?\d+(?:[.,]\d+)?(?=\s*(?:m2|m²))", surface)
         liste_surface.append(int(surface_texte[0]) if surface_texte else None)
     except Exception:
         liste_surface.append(None)
@@ -98,21 +122,21 @@ def _pv_lien(card, liste_lien, liste_titre):
         liste_lien.append(None)
         liste_titre.append(None)
 
-def scrape_paruvendu(context):
-    if not PARUVENDU_URL:
+def scrape_paruvendu(context, url):
+    if not url:
         return pd.DataFrame(columns=COLONNES)
     page = context.new_page()
     prix, surface, pieces, commune, dpe, lien, titre = ([] for _ in range(7))
     try:
-        page.goto(PARUVENDU_URL, wait_until='networkidle')
+        page.goto(url, wait_until='networkidle')
         bloc = page.locator("p.text-sm").all()
         page_text = re.findall(r"(?<=(?:sur ))\s*[-+]?\d+(?:[.,]\d+)?", bloc[-1].first.inner_text())
         nombre_pages = int(float(page_text[0]) // 29) + 1
 
         for i in range(1, nombre_pages + 1):
             print(f'[paruvendu] page {i}/{nombre_pages}')
-            sep = "&" if "?" in PARUVENDU_URL else "?"
-            page.goto(f"{PARUVENDU_URL}{sep}p={i}", wait_until='networkidle')
+            sep = "&" if "?" in url else "?"
+            page.goto(f"{url}{sep}p={i}", wait_until='networkidle')
             for card in page.locator("div.blocAnnonce").all():
                 _pv_prix(card, prix)
                 _pv_surface(card, surface)
@@ -125,7 +149,7 @@ def scrape_paruvendu(context):
             "Prix": prix, "Surface": surface, "Commune": commune,
             "Pieces": pieces, "DPE": dpe, "Titre": titre, "Lien": lien,
         })
-        df["DPE"] = df["DPE"].map({'A': 7, 'B': 6, 'C': 5, 'D': 4, 'E': 3, 'F': 2, 'G': 1})
+        df["DPE"] = df["DPE"].map(DPE_MAP)
         df["Source"] = "paruvendu"
         return df[COLONNES]
     except Exception as e:
@@ -136,51 +160,7 @@ def scrape_paruvendu(context):
 
 
 # ═════════════════════════════════════════════════════════════
-# SOURCE 2 — PAP (particulier à particulier). Tout est dans la liste.
-# ═════════════════════════════════════════════════════════════
-def scrape_pap(context):
-    if not PAP_URL:
-        return pd.DataFrame(columns=COLONNES)
-    page = context.new_page()
-    rows = []
-    try:
-        page.goto(PAP_URL, wait_until="domcontentloaded", timeout=45000)
-        page.wait_for_timeout(6000)
-        soup = BeautifulSoup(page.content(), "html.parser")
-        for it in soup.select("div.search-list-item-alt"):
-            a = it.select_one("a.item-title")
-            if not a or not a.get("href", "").startswith("/annonces/"):
-                continue  # ignore les blocs "atelier"/pub
-            titre = a.get_text(" ", strip=True)
-            href = "https://www.pap.fr" + a["href"]
-            prix = _num(it.select_one(".item-price").get_text() if it.select_one(".item-price") else None)
-            tags = [x.get_text(" ", strip=True) for x in it.select(".item-tags li")]
-            surface = pieces = None
-            for t in tags:
-                if "m²" in t or "m2" in t:
-                    surface = _num(t)
-                elif "pièce" in t or "piece" in t:
-                    pieces = _num(t)
-            dpe_el = it.select_one("[class*=item-thumb-dpe-]")
-            dpe = None
-            if dpe_el:
-                mdpe = re.search(r"item-thumb-dpe-([a-g])", " ".join(dpe_el.get("class")))
-                if mdpe:
-                    dpe = DPE_MAP.get(mdpe.group(1).upper())
-            mcom = re.search(r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\- ]*?)\s*\(" + CP_PREFIXE + r"\d{3}\)", titre)
-            commune = mcom.group(1).strip() if mcom else None
-            rows.append([prix, surface, commune, pieces, dpe, titre, href, "pap"])
-        print(f"[pap] {len(rows)} annonce(s)")
-        return pd.DataFrame(rows, columns=COLONNES)
-    except Exception as e:
-        print(f"[pap] Exception {e}")
-        return pd.DataFrame(columns=COLONNES)
-    finally:
-        page.close()
-
-
-# ═════════════════════════════════════════════════════════════
-# SOURCE 3 — OUEST-FRANCE IMMO. Surface uniquement sur page détail.
+# SOURCE 2 — OUEST-FRANCE IMMO (surface uniquement sur page détail)
 # ═════════════════════════════════════════════════════════════
 def _of_detail(page, url):
     surface = pieces = None
@@ -198,17 +178,16 @@ def _of_detail(page, url):
         pass
     return surface, pieces
 
-def scrape_ouestfrance(context):
-    if not OUESTFRANCE_URL:
+def scrape_ouestfrance(context, url):
+    if not url:
         return pd.DataFrame(columns=COLONNES)
     page = context.new_page()
     detail = context.new_page()
     rows = []
     try:
-        page.goto(OUESTFRANCE_URL, wait_until="domcontentloaded", timeout=45000)
+        page.goto(url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(6000)
-        soup = BeautifulSoup(page.content(), "html.parser")
-        arts = soup.select("article.card-annonce")
+        arts = BeautifulSoup(page.content(), "html.parser").select("article.card-annonce")
         print(f"[ouestfrance] {len(arts)} annonces listées, récup surface sur page détail...")
         for art in arts:
             a = art.select_one("a[href]")
@@ -217,11 +196,10 @@ def scrape_ouestfrance(context):
             href = a["href"]
             if href.startswith("/"):
                 href = "https://www.ouestfrance-immo.com" + href
-            titre = (art.select_one(".card-annonce__content__title").get_text(" ", strip=True)
-                     if art.select_one(".card-annonce__content__title") else "")
-            prix = _num(art.select_one(".card-annonce__content__price__main").get_text()
-                        if art.select_one(".card-annonce__content__price__main") else None)
-            # commune depuis le slug d'URL : .../appartement/vannes-56-56260/...
+            t_el = art.select_one(".card-annonce__content__title")
+            titre = t_el.get_text(" ", strip=True) if t_el else ""
+            p_el = art.select_one(".card-annonce__content__price__main")
+            prix = _num(p_el.get_text() if p_el else None)
             mcom = re.search(r"/([a-zà-ÿ\-]+)-" + CP_PREFIXE + r"-\d{5}/", href)
             commune = mcom.group(1).replace("-", " ").title() if mcom else None
             surface, pieces = _of_detail(detail, href)
@@ -240,27 +218,28 @@ def scrape_ouestfrance(context):
 # ═════════════════════════════════════════════════════════════
 # ORCHESTRATEUR
 # ═════════════════════════════════════════════════════════════
-def run_scraping():
+def run_scraping(ville="Vannes", km=10, prix_max=700):
+    global CP_PREFIXE
+    nom_off, dept, pv_url, of_url = build_urls(ville, km, prix_max)
+    CP_PREFIXE = dept
+    print(f"Ville : {nom_off} (dept {dept}) | rayon {km} km | budget OF ≤ {prix_max}€")
+
     with sync_playwright() as p:
-        # headless=False : PAP et Ouest-France utilisent DataDome (anti-bot)
-        # qui bloque le mode headless. Une fenêtre Chrome s'ouvre pendant le scrape.
+        # headless=False : Ouest-France utilise DataDome (anti-bot) qui bloque le
+        # mode headless. Une fenêtre Chrome s'ouvre pendant le scrape.
         browser = p.chromium.launch(headless=False)
         context = browser.new_context(user_agent=USER_AGENT, locale="fr-FR",
                                       viewport={"width": 1366, "height": 900})
         context.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
         try:
             frames = [
-                scrape_paruvendu(context),
-                scrape_pap(context),
-                scrape_ouestfrance(context),
+                scrape_paruvendu(context, pv_url),
+                scrape_ouestfrance(context, of_url),
             ]
             df = pd.concat([f for f in frames if not f.empty], ignore_index=True)
-
-            # Tri : meilleures annonces (€/m² le plus bas) en premier
             df["Prix m2"] = df["Prix"] / df["Surface"]
             df = df.sort_values(by="Prix m2", ascending=True, na_position="last")
             df = df.drop(columns=["Prix m2"])
-
             df.to_csv('Data_Loyer.csv', index=False)
             print(f"Total : {len(df)} annonces ({df['Source'].value_counts().to_dict()})")
         finally:
