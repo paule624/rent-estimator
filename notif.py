@@ -108,7 +108,11 @@ def _notif_discord(corps):
     if not wh:
         return
     data = json.dumps({"content": corps[:1900]}).encode()
-    req = urllib.request.Request(wh, data=data, headers={"Content-Type": "application/json"})
+    # Discord renvoie 403 si le User-Agent est celui par défaut de urllib.
+    req = urllib.request.Request(wh, data=data, headers={
+        "Content-Type": "application/json",
+        "User-Agent": "rent-estimator/0.1 (+https://github.com)",
+    })
     try:
         urllib.request.urlopen(req, timeout=15)
     except Exception as e:
