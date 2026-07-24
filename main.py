@@ -3,6 +3,8 @@ import argparse
 import subprocess
 from scrap import run_scraping
 from model import nettoyage_donnees, model_entrainement, bon_plan
+import historique
+from notif import notifier_deals
 
 CSV_DEALS = "Appartement_interessant.csv"
 
@@ -75,6 +77,14 @@ def main():
     deals = bon_plan(model, x, y, df, budget_max=prix_max, surface_min=surface_min)
 
     afficher_deals(deals)
+
+    # Historique + notif : nouveautés et baisses de prix depuis le dernier run
+    hist = historique.charger_historique()
+    nouveaux, baisses = historique.detecter(deals, hist)
+    if len(nouveaux) or len(baisses):
+        print(f"\n🔔 {len(nouveaux)} nouveau(x) · {len(baisses)} baisse(s) depuis le dernier run")
+        notifier_deals(nouveaux, baisses)
+    historique.sauver(deals, hist)
 
     chemin = os.path.abspath(CSV_DEALS)
     print(f"\n→ Détail complet + liens : {chemin}")

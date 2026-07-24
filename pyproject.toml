@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rent-estimator"
+version = "0.1.0"
+description = "Scrape French rental listings, estimate fair rent with ML, flag under-valued deals."
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "playwright",
+    "beautifulsoup4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+rent-estimator = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "scrap", "model", "notif", "historique"]

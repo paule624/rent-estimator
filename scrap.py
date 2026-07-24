@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import unicodedata
@@ -6,6 +7,26 @@ import urllib.request
 import pandas as pd
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
+
+# Cache des pages détail Ouest-France (Lien -> [surface, pieces]) pour éviter
+# de re-scraper les mêmes annonces à chaque run.
+CACHE_OF = "cache_of.json"
+
+def _charger_cache():
+    if os.path.exists(CACHE_OF):
+        try:
+            with open(CACHE_OF) as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def _sauver_cache(cache):
+    try:
+        with open(CACHE_OF, "w") as f:
+            json.dump(cache, f)
+    except Exception:
+        pass
 
 # ─────────────────────────────────────────────────────────────
 # CONFIG
@@ -31,6 +52,22 @@ def _num(txt):
 def _slug(nom):
     s = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+
+
+def commune_pv(texte, dept):
+    """Commune depuis un titre paruvendu, ex 'Appartement 37 m2 Languidic (56)'."""
+    if not texte:
+        return None
+    m = re.search(r"m[²2]\s+(.+?)\s*\(\s*" + dept, texte)
+    return m.group(1).strip() if m else None
+
+
+def commune_of(href, dept):
+    """Commune depuis une URL Ouest-France, ex '.../appartement/vannes-56-56260/...'."""
+    if not href:
+        return None
+    m = re.search(r"/([a-zà-ÿ\-]+)-" + dept + r"-\d{5}/", href)
+    return m.group(1).replace("-", " ").title() if m else None
 
 
 def resoudre_ville(nom):
@@ -104,8 +141,7 @@ def _pv_commune(card, liste_commune):
         texte = card.locator('a.hover\\:no-underline').first.inner_text()
         if DEBUG_LOCALISATION and len(liste_commune) < 3:
             print(f"[DEBUG paruvendu] {texte!r}")
-        m = re.search(r"m[²2]\s+(.+?)\s*\(\s*" + CP_PREFIXE, texte)
-        liste_commune.append(m.group(1).strip() if m else None)
+        liste_commune.append(commune_pv(texte, CP_PREFIXE))
     except Exception:
         liste_commune.append(None)
 
@@ -183,7 +219,9 @@ def scrape_ouestfrance(context, url):
         return pd.DataFrame(columns=COLONNES)
     page = context.new_page()
     detail = context.new_page()
+    cache = _charger_cache()
     rows = []
+    hits = 0
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(6000)
@@ -200,12 +238,17 @@ def scrape_ouestfrance(context, url):
             titre = t_el.get_text(" ", strip=True) if t_el else ""
             p_el = art.select_one(".card-annonce__content__price__main")
             prix = _num(p_el.get_text() if p_el else None)
-            mcom = re.search(r"/([a-zà-ÿ\-]+)-" + CP_PREFIXE + r"-\d{5}/", href)
-            commune = mcom.group(1).replace("-", " ").title() if mcom else None
-            surface, pieces = _of_detail(detail, href)
-            detail.wait_for_timeout(800)  # délai anti-ban entre pages détail
+            commune = commune_of(href, CP_PREFIXE)
+            if href in cache:  # déjà scrapé auparavant → pas de re-visite
+                surface, pieces = cache[href]
+                hits += 1
+            else:
+                surface, pieces = _of_detail(detail, href)
+                cache[href] = [surface, pieces]
+                detail.wait_for_timeout(800)  # délai anti-ban entre pages détail
             rows.append([prix, surface, commune, pieces, None, titre, href, "ouestfrance"])
-        print(f"[ouestfrance] {len(rows)} annonce(s) récupérées")
+        _sauver_cache(cache)
+        print(f"[ouestfrance] {len(rows)} annonce(s) récupérées ({hits} depuis le cache)")
         return pd.DataFrame(rows, columns=COLONNES)
     except Exception as e:
         print(f"[ouestfrance] Exception {e}")

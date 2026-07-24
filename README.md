@@ -26,12 +26,14 @@ CLI args (city, radius, budget)
 ## Usage
 
 ```bash
-pip install -r requirements.txt
+pip install -e .            # installs deps + the `rent-estimator` command
 playwright install chromium
 
-python main.py --ville Vannes --km 10 --max 700 --surface-min 33
-python main.py --ville Auray --km 15 --max 800
+rent-estimator             # interactive: asks city, radius, budget, min surface
+rent-estimator --ville Auray --km 15 --max 800   # or pass flags to skip prompts
 ```
+
+Run `python main.py` if you prefer not to install the package.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
@@ -40,14 +42,37 @@ python main.py --ville Auray --km 15 --max 800
 | `--max` | 700 | Max monthly rent for exported deals (€) |
 | `--surface-min` | 33 | Minimum surface for exported deals (m²) |
 
-**Output:** `Appartement_interessant.csv` — under-valued listings, sorted by discount, with a direct `Lien` (link) to each ad.
+**Output:** deals are printed in the terminal (with links) and written to
+`Appartement_interessant.csv` (opened automatically on macOS).
+
+## Extras
+
+- **Notifications** — new deals or price drops trigger a native macOS
+  notification, and a Telegram message if `TELEGRAM_TOKEN` and
+  `TELEGRAM_CHAT_ID` are set in the environment.
+- **History** — each run appends to `historique.csv`; the next run diffs
+  against it to detect new listings and price drops.
+- **Detail cache** — Ouest-France detail pages are cached in `cache_of.json`
+  so re-runs skip already-seen listings (much faster, fewer requests).
+
+## Tests
+
+```bash
+pip install -e ".[dev]"
+python -m pytest
+```
+
+Covers parsing helpers, commune extraction, cleaning (colocation removal,
+dedup, DPE imputation, outlier filtering), and the history diff logic.
 
 ## Files
 
-- `main.py` — CLI orchestrator.
-- `scrap.py` — geo resolver, URL builder, paruvendu + Ouest-France scrapers.
+- `main.py` — CLI orchestrator (interactive prompts + flags).
+- `scrap.py` — geo resolver, URL builder, paruvendu + Ouest-France scrapers, cache.
 - `model.py` — cleaning, preprocessing, ML training, deal extraction.
-- `Data_Loyer.csv` — all scraped listings (sorted best-value first).
+- `historique.py` — run history + new-deal / price-drop detection.
+- `notif.py` — macOS + Telegram notifications.
+- `tests/` — pytest suite.
 - `Appartement_interessant.csv` — exported deals.
 
 ## Notes & limits
