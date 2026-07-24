@@ -13,6 +13,7 @@ dependencies = [
     "scikit-learn",
     "playwright",
     "beautifulsoup4",
+    "questionary",
 ]
 
 [project.optional-dependencies]

@@ -1,61 +1,151 @@
 import os
+import sys
 import argparse
 import subprocess
+
+import questionary
+
 from scrap import run_scraping
 from model import nettoyage_donnees, model_entrainement, bon_plan
 import historique
 import notif
+import config
 
 CSV_DEALS = "Appartement_interessant.csv"
 
 
-def demander(question, defaut, cast=str):
-    """Pose une question, renvoie la réponse castée. Entrée vide = valeur par défaut."""
-    rep = input(f"{question} [{defaut}] : ").strip()
-    if not rep:
-        return defaut
+def _int(txt, defaut):
     try:
-        return cast(rep)
-    except ValueError:
-        print(f"  ! valeur invalide, on garde {defaut}")
+        return int(str(txt).strip())
+    except (ValueError, AttributeError):
         return defaut
 
 
-def demander_canal(defaut="1"):
-    """Menu de choix du canal de notification."""
-    print("\nOù recevoir les nouveaux bons plans à la fin ?")
-    for k, (_, label) in notif.CANAUX.items():
-        print(f"  {k}) {label}")
-    choix = input(f"Choix [{defaut}] : ").strip() or defaut
-    canal = notif.CANAUX.get(choix, notif.CANAUX[defaut])[0]
-    return canal
+def _canal_choices():
+    return [questionary.Choice(label, value=canal) for canal, label in notif.CANAUX.values()]
+
+
+def _profil_label(nom, p):
+    return f"{nom} · {p['km']}km · ≤{p['prix_max']}€ · {p['canal']}"
+
+
+def profil_vers_params(p):
+    return p["ville"], p["km"], p["prix_max"], p["surface_min"], p["canal"]
+
+
+# ── flux « nouvelle recherche » ──────────────────────────────
+def nouvelle_recherche():
+    ville = questionary.text("Ville", default="Vannes").ask()
+    if ville is None:
+        return None
+    km = _int(questionary.text("Rayon (km)", default="10").ask(), 10)
+    prix_max = _int(questionary.text("Budget max (€/mois)", default="700").ask(), 700)
+    surface_min = _int(questionary.text("Surface mini (m²)", default="33").ask(), 33)
+    canal = questionary.select("Où recevoir les bons plans ?", choices=_canal_choices()).ask()
+    if canal is None:
+        return None
+    notif.assurer_config(canal)
+
+    profil = {"ville": ville, "km": km, "prix_max": prix_max,
+              "surface_min": surface_min, "canal": canal}
+
+    if questionary.confirm("Sauver cette recherche comme profil ?", default=True).ask():
+        _sauver_profil_interactif(profil)
+    return profil
+
+
+def _sauver_profil_interactif(profil):
+    profils = config.charger_profils()
+    nom = questionary.text("Nom du profil", default=profil["ville"]).ask()
+    if not nom:
+        return
+    if nom in profils and not questionary.confirm(f"'{nom}' existe déjà. Écraser ?",
+                                                  default=False).ask():
+        nom = questionary.text("Nouveau nom").ask()
+        if not nom:
+            return
+    config.sauver_profil(nom, profil)
+    print(f"  ✓ Profil '{nom}' sauvé.")
+
+
+def _supprimer_profil_interactif(profils):
+    nom = questionary.select(
+        "Supprimer quel profil ?",
+        choices=list(profils) + [questionary.Choice("← annuler", value=None)],
+    ).ask()
+    if nom and questionary.confirm(f"Supprimer '{nom}' ?", default=False).ask():
+        config.supprimer_profil(nom)
+        print(f"  ✓ Profil '{nom}' supprimé.")
+
+
+# ── menu principal ───────────────────────────────────────────
+def menu_interactif():
+    """Boucle du menu profils. Renvoie un dict profil, ou None si abandon."""
+    while True:
+        profils = config.charger_profils()
+        if not profils:
+            return nouvelle_recherche()
+
+        dernier = config.get_dernier_profil()
+        choix, defaut = [], None
+        for nom, p in profils.items():
+            c = questionary.Choice(_profil_label(nom, p), value=("profil", nom))
+            choix.append(c)
+            if nom == dernier:
+                defaut = c
+        choix.append(questionary.Choice("🆕 Nouvelle recherche", value=("nouveau", None)))
+        choix.append(questionary.Choice("🗑 Supprimer un profil", value=("supprimer", None)))
+
+        sel = questionary.select("Profil ?", choices=choix, default=defaut).ask()
+        if sel is None:
+            return None
+        action, nom = sel
+        if action == "profil":
+            config.set_dernier_profil(nom)
+            return config.get_profil(nom)
+        if action == "nouveau":
+            return nouvelle_recherche()
+        if action == "supprimer":
+            _supprimer_profil_interactif(profils)
+            # retour au menu (boucle)
 
 
 def recolte_parametres():
-    """Args CLI si fournis, sinon questions interactives."""
+    """Renvoie (ville, km, prix_max, surface_min, canal) ou None si abandon."""
     p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
     p.add_argument("--ville")
     p.add_argument("--km", type=int)
     p.add_argument("--max", type=int, dest="prix_max")
     p.add_argument("--surface-min", type=int, dest="surface_min")
-    p.add_argument("--notif", choices=["terminal", "macos", "telegram", "email", "discord"],
-                   help="Canal de notification (saute la question)")
+    p.add_argument("--notif", choices=["terminal", "macos", "telegram", "email", "discord"])
+    p.add_argument("--profil", help="Rejoue un profil sauvegardé sans menu (pour cron)")
     a = p.parse_args()
 
-    # Mode interactif : on ne demande que ce qui n'a pas été passé en argument
+    # Non-interactif : rejouer un profil (cron)
+    if a.profil:
+        prof = config.get_profil(a.profil)
+        if not prof:
+            print(f"Profil '{a.profil}' introuvable. Existants : {list(config.charger_profils())}")
+            return None
+        config.set_dernier_profil(a.profil)
+        return profil_vers_params(prof)
+
+    # Non-interactif : flags explicites
+    if a.ville is not None:
+        canal = a.notif or "terminal"
+        notif.assurer_config(canal)
+        return (a.ville, a.km or 10, a.prix_max or 700, a.surface_min or 33, canal)
+
+    # Interactif : menu profils
     print("=== Rent Estimator — Détecteur de bons plans location ===\n")
-    ville = a.ville if a.ville is not None else demander("Ville", "Vannes")
-    km = a.km if a.km is not None else demander("Rayon (km)", 10, int)
-    prix_max = a.prix_max if a.prix_max is not None else demander("Budget max (€/mois)", 700, int)
-    surface_min = a.surface_min if a.surface_min is not None else demander("Surface mini (m²)", 33, int)
-    canal = a.notif if a.notif is not None else demander_canal()
-    notif.assurer_config(canal)  # demande & sauve les identifiants manquants du canal
+    profil = menu_interactif()
+    if profil is None:
+        return None
     print()
-    return ville, km, prix_max, surface_min, canal
+    return profil_vers_params(profil)
 
 
 def afficher_deals(deals):
-    """Affiche les bons plans directement dans le terminal."""
     print("\n" + "=" * 60)
     if deals is None or len(deals) == 0:
         print("  Aucun bon plan trouvé avec ces critères.")
@@ -74,7 +164,11 @@ def afficher_deals(deals):
 
 
 def main():
-    ville, km, prix_max, surface_min, canal = recolte_parametres()
+    params = recolte_parametres()
+    if params is None:
+        print("Abandon.")
+        return
+    ville, km, prix_max, surface_min, canal = params
 
     print(f"1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
     fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
@@ -92,7 +186,6 @@ def main():
 
     afficher_deals(deals)
 
-    # Historique + notif : nouveautés et baisses de prix depuis le dernier run
     hist = historique.charger_historique()
     nouveaux, baisses = historique.detecter(deals, hist)
     if len(nouveaux) or len(baisses):
@@ -103,7 +196,7 @@ def main():
     chemin = os.path.abspath(CSV_DEALS)
     print(f"\n→ Détail complet + liens : {chemin}")
     try:
-        subprocess.run(["open", chemin], check=False)  # ouvre le CSV (macOS)
+        subprocess.run(["open", chemin], check=False)
     except Exception:
         pass
 

@@ -3,3 +3,4 @@ numpy
 scikit-learn
 playwright
 beautifulsoup4
+questionary

@@ -11,6 +11,7 @@ Prix,Surface,Commune,Pieces,DPE,Titre,Lien,Source
 870.0,78.0,Vannes,3.0,4.0,Appartement 78 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292802001A1KILHAP000,paruvendu
 1300.0,115.0,Ploeren,4.0,2.0,Maison 115 m2 Ploeren (56),https://www.paruvendu.fr/immobilier/location/maison/1292721670A1KILHMN000,paruvendu
 600.0,53.0,Vannes,3.0,4.0,Maison 53 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293220692A1KILHMN000,paruvendu
+600.0,53.0,Vannes,3.0,,Location maison 3 pièces Vannes Centre Ville 56 600 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/maison/vannes-56-56260/20422388.htm,ouestfrance
 1300.0,114.0,Vannes,6.0,5.0,Maison 114 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293072065A1KILHMN000,paruvendu
 1375.0,120.0,Vannes,7.0,4.0,Maison 120 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/maison/1293505444A1KILHMN000,paruvendu
 642.0,54.0,Pluneret,3.0,,Location appartement 3 pièces Pluneret 56 642 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/pluneret-56-56176/3-pieces-20452685.htm,ouestfrance
@@ -23,8 +24,6 @@ Prix,Surface,Commune,Pieces,DPE,Titre,Lien,Source
 700.0,52.0,Plougoumelen,3.0,,Location appartement 3 pièces Plougoumelen 56 700 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/plougoumelen-56-56167/3-pieces-20430620.htm,ouestfrance
 620.0,46.0,Vannes,2.0,4.0,Appartement 46 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293515115A1KILHAP000,paruvendu
 620.0,46.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 620 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20400303.htm,ouestfrance
-534.0,39.0,Pluvigner,2.0,,Location appartement 2 pièces Pluvigner 56 534 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/pluvigner-56-56177/2-pieces-20449122.htm,ouestfrance
-700.0,51.0,Ambon,3.0,,Location maison 3 pièces Ambon 56 700 €,https://www.ouestfrance-immo.com/immobilier/location/maison/ambon-56-56002/20430852.htm,ouestfrance
 1260.0,89.0,Surzur,5.0,4.0,Maison 89 m2 Surzur (56),https://www.paruvendu.fr/immobilier/location/maison/1293102071A1KILHMN000,paruvendu
 540.0,38.0,Vannes,2.0,,Appartement 38 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292888489A1KILHAP000,paruvendu
 550.0,38.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 550 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20456909.htm,ouestfrance
@@ -36,24 +35,25 @@ Prix,Surface,Commune,Pieces,DPE,Titre,Lien,Source
 630.0,40.0,Plescop,2.0,,Location appartement 2 pièces Plescop 56 630 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/plescop-56-56158/2-pieces-20388196.htm,ouestfrance
 815.0,51.0,Séné,3.0,4.0,Maison 51 m2 Séné (56),https://www.paruvendu.fr/immobilier/location/maison/1291665236A1KILHMN000,paruvendu
 695.0,43.0,Elven,2.0,4.0,Appartement 43 m2 Elven (56),https://www.paruvendu.fr/immobilier/location/appartement/1293469087A1KILHAP000,paruvendu
-520.0,32.0,Auray,2.0,,Location appartement 2 pièces Auray La Gare 56 520 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/auray-56-56007/2-pieces-20381883.htm,ouestfrance
 580.0,35.0,,2.0,4.0,Appartement 35 m2,https://www.paruvendu.fr/immobilier/location/appartement/1292005394A1KILHAP000,paruvendu
+700.0,42.0,Vannes,2.0,,Location appartement 2 pièces Vannes Bondon - Kerlann 56 700 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20273033.htm,ouestfrance
 1000.0,60.0,Sarzeau,4.0,4.0,Maison 60 m2 Sarzeau (56),https://www.paruvendu.fr/immobilier/location/maison/1293238772A1KILHMN000,paruvendu
-422.0,25.0,Auray,,,Location appartement 1 pièce Auray 56 422 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/auray-56-56007/t1-20429667.htm,ouestfrance
+635.0,38.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 635 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-20409287.htm,ouestfrance
 950.0,55.0,Vannes,3.0,,Appartement 55 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293469085A1KILHAP000,paruvendu
-625.0,34.0,Auray,4.0,,Location appartement 4 pièces Auray La Gare 56 625 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/auray-56-56007/4-pieces-20447587.htm,ouestfrance
+450.0,25.0,Saint Ave,,,Location appartement 1 pièce Saint-Avé 56 450 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/saint-ave-56-56206/t1-20375412.htm,ouestfrance
+470.0,26.0,Sene,,,Location Studio 1 pièce Séné 56 470 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/sene-56-56243/studio-20404007.htm,ouestfrance
 895.0,47.0,Vannes,2.0,5.0,Appartement 47 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293114908A1KILHAP000,paruvendu
 750.0,39.0,Vannes,2.0,3.0,Appartement 39 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1292562568A1KILHAP000,paruvendu
 500.0,26.0,Vannes,1.0,3.0,Appartement 26 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293505445A1KILHAP000,paruvendu
 350.0,18.0,Saint-Avé,1.0,6.0,Appartement 18 m2 Saint-Avé (56),https://www.paruvendu.fr/immobilier/location/appartement/1293373040A1KILHAP000,paruvendu
 710.0,36.0,Vannes,2.0,4.0,Appartement 36 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293330115A1KILHAP000,paruvendu
 655.0,33.0,Vannes,2.0,,Location appartement 2 pièces Vannes 56 655 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/2-pieces-19563644.htm,ouestfrance
+620.0,31.0,Theix Noyalo,2.0,,Location appartement 2 pièces Theix 56 620 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/theix-noyalo-56-56251/2-pieces-20315951.htm,ouestfrance
 520.0,25.0,Vannes,,,Location appartement 1 pièce Vannes 56 520 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-18703700.htm,ouestfrance
 760.0,36.0,Vannes,2.0,5.0,Appartement 36 m2 Vannes (56),https://www.paruvendu.fr/immobilier/location/appartement/1293072069A1KILHAP000,paruvendu
 543.0,25.0,Sarzeau,,,Location appartement 1 pièce Sarzeau 56 543 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/sarzeau-56-56240/t1-20138508.htm,ouestfrance
 398.0,18.0,Vannes,,,Location appartement 1 pièce Vannes Vincin 56 398 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-20379419.htm,ouestfrance
 611.0,27.0,Vannes,,,Location appartement 1 pièce Vannes 56 611 €,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/t1-19688665.htm,ouestfrance
-500.0,20.0,Arradon,,,Location appartement 1 pièce Arradon 56 500 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/arradon-56-56003/t1-20398632.htm,ouestfrance
 650.0,25.0,Larmor Baden,,,Location appartement 1 pièce Larmor-Baden 56 650 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/larmor-baden-56-56106/t1-20383178.htm,ouestfrance
 470.0,17.0,Sainte-Anne-d'Auray,2.0,3.0,Appartement 17 m2 Sainte-Anne-d'Auray (56),https://www.paruvendu.fr/immobilier/location/appartement/1282630749A1KILHAP000,paruvendu
 610.0,20.0,Vannes,,,Location Studio 1 pièce Vannes 56 610 € Meublé,https://www.ouestfrance-immo.com/immobilier/location/appartement/vannes-56-56260/studio-20424585.htm,ouestfrance

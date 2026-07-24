@@ -29,9 +29,15 @@ CLI args (city, radius, budget)
 pip install -e .            # installs deps + the `rent-estimator` command
 playwright install chromium
 
-rent-estimator             # interactive: asks city, radius, budget, min surface
-rent-estimator --ville Auray --km 15 --max 800   # or pass flags to skip prompts
+rent-estimator                       # interactive: arrow-key menu of saved profiles
+rent-estimator --profil vannes       # replay a saved profile, no prompts (for cron)
+rent-estimator --ville Auray --km 15 --max 800   # explicit flags, no prompts
 ```
+
+**Profiles.** A run's settings (city, radius, budget, min surface, notification
+channel) can be saved as a named **profile**. On launch, an arrow-key menu lists
+your profiles with the last-used one pre-selected — press Enter to replay it, or
+pick another / create a new search / delete one. Profiles live in `.config.json`.
 
 Run `python main.py` if you prefer not to install the package.
 
