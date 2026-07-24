@@ -111,7 +111,8 @@ def menu_interactif():
 
 
 def recolte_parametres():
-    """Renvoie (ville, km, prix_max, surface_min, canal) ou None si abandon."""
+    """Renvoie (ville, km, prix_max, surface_min, canal, interactif) ou None si abandon.
+    `interactif` = True si on est passé par le menu (→ demander confirmation avant Chrome)."""
     p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
     p.add_argument("--ville")
     p.add_argument("--km", type=int)
@@ -128,13 +129,13 @@ def recolte_parametres():
             print(f"Profil '{a.profil}' introuvable. Existants : {list(config.charger_profils())}")
             return None
         config.set_dernier_profil(a.profil)
-        return profil_vers_params(prof)
+        return profil_vers_params(prof) + (False,)
 
     # Non-interactif : flags explicites
     if a.ville is not None:
         canal = a.notif or "terminal"
         notif.assurer_config(canal)
-        return (a.ville, a.km or 10, a.prix_max or 700, a.surface_min or 33, canal)
+        return (a.ville, a.km or 10, a.prix_max or 700, a.surface_min or 33, canal, False)
 
     # Interactif : menu profils
     print("=== Rent Estimator — Détecteur de bons plans location ===\n")
@@ -142,7 +143,7 @@ def recolte_parametres():
     if profil is None:
         return None
     print()
-    return profil_vers_params(profil)
+    return profil_vers_params(profil) + (True,)
 
 
 def afficher_deals(deals):
@@ -168,9 +169,16 @@ def main():
     if params is None:
         print("Abandon.")
         return
-    ville, km, prix_max, surface_min, canal = params
+    ville, km, prix_max, surface_min, canal, interactif = params
 
-    print(f"1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
+    if interactif:
+        print(f"\n▶ Recherche : {ville} · {km}km · ≤{prix_max}€ · ≥{surface_min}m² · notif {canal}")
+        print("  Une fenêtre Chrome va s'ouvrir automatiquement (elle se ferme seule à la fin).")
+        if not questionary.confirm("Commencer ?", default=True).ask():
+            print("Annulé.")
+            return
+
+    print(f"\n1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
     fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
     if not fichier:
         return
