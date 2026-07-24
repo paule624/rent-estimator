@@ -6,3 +6,4 @@ build/
 dist/
 cache_of.json
 historique.csv
+.config.json

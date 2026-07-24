@@ -49,7 +49,7 @@ def recolte_parametres():
     prix_max = a.prix_max if a.prix_max is not None else demander("Budget max (€/mois)", 700, int)
     surface_min = a.surface_min if a.surface_min is not None else demander("Surface mini (m²)", 33, int)
     canal = a.notif if a.notif is not None else demander_canal()
-    notif.verifier_canal(canal)  # prévient si le canal choisi n'est pas configuré
+    notif.assurer_config(canal)  # demande & sauve les identifiants manquants du canal
     print()
     return ville, km, prix_max, surface_min, canal
 

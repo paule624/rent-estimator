@@ -1,20 +1,20 @@
 """Notifications multi-canal : terminal, macOS, Telegram, Email, Discord.
 
-Les canaux distants utilisent des variables d'environnement (pas de secret
-dans le code) :
-- Telegram : TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
-- Email    : EMAIL_FROM, EMAIL_PASSWORD, EMAIL_TO (optionnel), SMTP_HOST/PORT (optionnel)
-- Discord  : DISCORD_WEBHOOK
+Les identifiants des canaux distants sont demandés une fois de façon
+interactive puis sauvegardés (config.py / .config.json). On peut aussi les
+fournir par variable d'environnement (prioritaire).
 """
-import os
 import ssl
 import json
 import shutil
+import getpass
 import smtplib
 import subprocess
 import urllib.parse
 import urllib.request
 from email.message import EmailMessage
+
+import config
 
 CANAUX = {
     "1": ("terminal", "Terminal seulement"),
@@ -24,28 +24,42 @@ CANAUX = {
     "5": ("discord", "Discord"),
 }
 
-# Variables d'env requises par canal (pour la vérification au démarrage)
-_REQUIS = {
-    "telegram": ["TELEGRAM_TOKEN", "TELEGRAM_CHAT_ID"],
-    "email": ["EMAIL_FROM", "EMAIL_PASSWORD"],
-    "discord": ["DISCORD_WEBHOOK"],
-}
-_AIDE = {
-    "telegram": "export TELEGRAM_TOKEN=... ; export TELEGRAM_CHAT_ID=...",
-    "email": "export EMAIL_FROM=... ; export EMAIL_PASSWORD=... (mot de passe d'application)",
-    "discord": "export DISCORD_WEBHOOK=https://discord.com/api/webhooks/...",
+# Champs à demander par canal : (clé, label, secret ?, optionnel ?)
+_CHAMPS = {
+    "telegram": [
+        ("TELEGRAM_TOKEN", "Token du bot Telegram (via @BotFather)", True, False),
+        ("TELEGRAM_CHAT_ID", "Chat ID Telegram", False, False),
+    ],
+    "email": [
+        ("EMAIL_FROM", "Ton email expéditeur", False, False),
+        ("EMAIL_PASSWORD", "Mot de passe d'application", True, False),
+        ("EMAIL_TO", "Email destinataire (Entrée = le même)", False, True),
+    ],
+    "discord": [
+        ("DISCORD_WEBHOOK", "URL du webhook Discord", False, False),
+    ],
 }
 
 
-def verifier_canal(canal):
-    """Prévient au démarrage si le canal choisi n'est pas configuré."""
-    manquants = [v for v in _REQUIS.get(canal, []) if not os.environ.get(v)]
-    if manquants:
-        print(f"⚠️  Canal '{canal}' non configuré (manque : {', '.join(manquants)}).")
-        print(f"    Configure-le avant : {_AIDE[canal]}")
-        print("    Sinon la notif sera ignorée (les deals restent dans le terminal + CSV).\n")
-        return False
-    return True
+def assurer_config(canal):
+    """Demande interactivement les identifiants manquants du canal et les sauve."""
+    champs = _CHAMPS.get(canal)
+    if not champs:
+        return True
+    cfg = config.charger()
+    ok = True
+    for cle, label, secret, optionnel in champs:
+        if config.get(cle):
+            continue
+        prompt = f"  {label} : "
+        val = (getpass.getpass(prompt) if secret else input(prompt)).strip()
+        if val:
+            cfg[cle] = val
+        elif not optionnel:
+            print(f"  (vide → canal '{canal}' inactif, deals seulement au terminal + CSV)")
+            ok = False
+    config.sauver(cfg)
+    return ok
 
 
 # ── canaux ───────────────────────────────────────────────────
@@ -60,7 +74,7 @@ def _notif_macos(titre, message):
         pass
 
 def _notif_telegram(message):
-    token, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    token, chat = config.get("TELEGRAM_TOKEN"), config.get("TELEGRAM_CHAT_ID")
     if not token or not chat:
         return
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -72,12 +86,12 @@ def _notif_telegram(message):
         print(f"  ! Telegram échec : {e}")
 
 def _notif_email(sujet, corps):
-    exp, pwd = os.environ.get("EMAIL_FROM"), os.environ.get("EMAIL_PASSWORD")
+    exp, pwd = config.get("EMAIL_FROM"), config.get("EMAIL_PASSWORD")
     if not exp or not pwd:
         return
-    dest = os.environ.get("EMAIL_TO", exp)
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-    port = int(os.environ.get("SMTP_PORT", "587"))
+    dest = config.get("EMAIL_TO") or exp
+    host = config.get("SMTP_HOST") or "smtp.gmail.com"
+    port = int(config.get("SMTP_PORT") or 587)
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = exp, dest, sujet
     msg.set_content(corps)
@@ -90,7 +104,7 @@ def _notif_email(sujet, corps):
         print(f"  ! Email échec : {e}")
 
 def _notif_discord(corps):
-    wh = os.environ.get("DISCORD_WEBHOOK")
+    wh = config.get("DISCORD_WEBHOOK")
     if not wh:
         return
     data = json.dumps({"content": corps[:1900]}).encode()
