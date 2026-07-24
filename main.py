@@ -1,6 +1,10 @@
+import os
 import argparse
+import subprocess
 from scrap import run_scraping
 from model import nettoyage_donnees, model_entrainement, bon_plan
+
+CSV_DEALS = "Appartement_interessant.csv"
 
 
 def demander(question, defaut, cast=str):
@@ -34,21 +38,51 @@ def recolte_parametres():
     return ville, km, prix_max, surface_min
 
 
-if __name__ == "__main__":
+def afficher_deals(deals):
+    """Affiche les bons plans directement dans le terminal."""
+    print("\n" + "=" * 60)
+    if deals is None or len(deals) == 0:
+        print("  Aucun bon plan trouvé avec ces critères.")
+        print("  Essaie d'élargir : budget +, surface -, ou rayon +.")
+        print("=" * 60)
+        return
+    print(f"  {len(deals)} BON(S) PLAN(S) — triés par décote")
+    print("=" * 60)
+    for _, r in deals.iterrows():
+        print(f"\n  {r['Commune']} — {int(r['Surface'])}m², {int(r['Pieces'])} pièces — "
+              f"{int(r['Prix'])}€/mois")
+        print(f"    Décote : {r['Decote']:.0f}%  (estimé ~{int(r['Estimation'])}€)  "
+              f"[{r['Source']}]")
+        print(f"    {r['Lien']}")
+    print("\n" + "=" * 60)
+
+
+def main():
     ville, km, prix_max, surface_min = recolte_parametres()
 
     print(f"1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
     fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
+    if not fichier:
+        return
 
-    if fichier:
-        print("\n2. Nettoyage des données...")
-        df = nettoyage_donnees(fichier)
+    print("\n2. Nettoyage des données...")
+    df = nettoyage_donnees(fichier)
 
-        print("\n3. Entraînement du modèle...")
-        model, x, y = model_entrainement(df)
+    print("\n3. Entraînement du modèle...")
+    model, x, y = model_entrainement(df)
 
-        print("\n4. Export des opportunités sous-évaluées...")
-        bon_plan(model, x, y, df, budget_max=prix_max, surface_min=surface_min)
+    print("\n4. Export des opportunités sous-évaluées...")
+    deals = bon_plan(model, x, y, df, budget_max=prix_max, surface_min=surface_min)
 
-        print("\nPipeline exécuté avec succès !")
-        print("→ Résultats dans Appartement_interessant.csv")
+    afficher_deals(deals)
+
+    chemin = os.path.abspath(CSV_DEALS)
+    print(f"\n→ Détail complet + liens : {chemin}")
+    try:
+        subprocess.run(["open", chemin], check=False)  # ouvre le CSV (macOS)
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    main()

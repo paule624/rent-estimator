@@ -92,9 +92,9 @@ def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
     df.to_csv("Appartement_interessant.csv", index=False)
     print(f"{len(df)} bon(s) plan(s) ≤ {budget_max}€ et ≥ {surface_min}m² exporté(s).")
 
-    return 'csv créée'
+    return df
 
 if "__main__" == __name__:
     df = nettoyage_donnees()
     model, x, y = model_entrainement(df)
-    print(bon_plan(model, x, y, df))
+    bon_plan(model, x, y, df)

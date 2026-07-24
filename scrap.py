@@ -223,6 +223,9 @@ def run_scraping(ville="Vannes", km=10, prix_max=700):
     nom_off, dept, pv_url, of_url = build_urls(ville, km, prix_max)
     CP_PREFIXE = dept
     print(f"Ville : {nom_off} (dept {dept}) | rayon {km} km | budget OF ≤ {prix_max}€")
+    print("ℹ️  Une fenêtre navigateur va s'ouvrir automatiquement (Chromium de "
+          "Playwright, PAS ton Chrome perso). Ne la ferme pas, elle bosse seule "
+          "et se fermera à la fin.\n")
 
     with sync_playwright() as p:
         # headless=False : Ouest-France utilise DataDome (anti-bot) qui bloque le
