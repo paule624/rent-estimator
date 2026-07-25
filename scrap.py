@@ -70,6 +70,57 @@ def commune_of(href, dept):
     return m.group(1).replace("-", " ").title() if m else None
 
 
+# Villes à arrondissements : plage de codes postaux -> nom de la ville.
+# Toute leur surface est une seule commune INSEE, donc le nom de commune ne
+# discrimine rien : c'est le CP qui porte l'arrondissement. Voir docs/adr/0002.
+PLAGES_ARRONDISSEMENT = {
+    "Paris": (75001, 75020),
+    "Lyon": (69001, 69009),
+    "Marseille": (13001, 13016),
+}
+
+# Le 16e arrondissement de Paris porte deux CP (75016 et 75116). Sans cet
+# alias, 75116 tomberait hors plage et couperait le 16e en deux secteurs.
+ALIAS_CP = {75116: 75016}
+
+
+def _libelle_arrondissement(ville, rang):
+    """Libellé unique d'un arrondissement, partagé par les deux extracteurs de
+    Secteur : un même arrondissement doit rendre la même chaîne, sinon le
+    One-Hot du modèle le coupe en deux catégories."""
+    return f"{ville} {rang}{'er' if rang == 1 else 'e'}"
+
+
+def cp_vers_secteur(cp, commune):
+    """Secteur d'une annonce : l'arrondissement dans les villes qui en ont,
+    la commune partout ailleurs. Voir docs/adr/0002."""
+    try:
+        # via float() : pandas rend un CP relu du CSV en float (75011.0)
+        # dès qu'une ligne de la colonne est vide.
+        code = int(float(cp))
+    except (TypeError, ValueError):
+        return commune          # source sans CP exploitable
+    code = ALIAS_CP.get(code, code)
+    for ville, (debut, fin) in PLAGES_ARRONDISSEMENT.items():
+        if debut <= code <= fin:
+            return _libelle_arrondissement(ville, code - debut + 1)
+    return commune
+
+
+def titre_vers_secteur(titre):
+    """Secteur depuis un titre paruvendu, seule source géo de ce site.
+    Ex "Appartement 52 m2 Paris 15" -> "Paris 15e". Voir docs/adr/0002."""
+    if not titre:
+        return None
+    m = re.search(r"Paris\s+(\d{1,2})\b", titre)
+    if m:
+        return _libelle_arrondissement("Paris", int(m.group(1)))
+    # "<type> <surface> m2 <Commune> (<dept>)" — le dept varie d'une annonce
+    # a l'autre, on ne le contraint pas.
+    m = re.search(r"m[²2]\s+(.+?)\s*\(\s*\d{2,3}\s*\)", titre)
+    return m.group(1).strip() if m else None
+
+
 def resoudre_ville(nom):
     """Résout un nom de ville en (nom officiel, code INSEE, code postal, département)
     via l'API gratuite geo.api.gouv.fr."""

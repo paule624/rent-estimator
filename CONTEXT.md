@@ -24,9 +24,18 @@ _Avoid_: notif, sortie
 Le journal des annonces déjà vues, servant à détecter les nouveautés et les baisses de prix.
 _Avoid_: log, cache
 
+**Secteur**:
+La maille géographique sur laquelle le modèle apprend le prix. Vaut la **commune** dans le cas général, mais l'**arrondissement** pour les villes à arrondissements (Paris, Lyon, Marseille), où toute la ville est une seule commune. C'est la clé One-Hot du modèle.
+_Avoid_: quartier, zone, ville
+
+**Estimation peu fiable**:
+Marqueur porté par un **Bon plan** dont le **Secteur** a trop peu d'annonces pour une estimation solide. Le bon plan est montré quand même, avec l'aveu d'incertitude — jamais masqué.
+_Avoid_: invalide, rejeté
+
 ## Relationships
 
 - Un **Profil** fixe une recherche + un **Canal**
+- Un run couvre plusieurs **Secteurs** ; le modèle compare les prix entre eux (One-Hot)
 - Un run produit des **Bons plans**, chacun avec sa **Décote**
 - L'**Historique** distingue les **Bons plans** nouveaux des déjà-vus
 

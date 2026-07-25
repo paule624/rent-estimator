@@ -1,0 +1,41 @@
+"""Extraction du Secteur depuis un titre paruvendu.
+
+paruvendu n'expose aucun code postal (cf docs/adr/0002) : le titre est son seul
+signal géographique. Les titres ci-dessous sont relevés sur le site.
+"""
+import scrap
+
+
+def test_titre_paris_donne_l_arrondissement():
+    assert scrap.titre_vers_secteur("Appartement 52 m2 Paris 15") == "Paris 15e"
+
+
+def test_titre_commune_donne_la_commune():
+    # Le departement varie d'une annonce a l'autre dans un meme run (92, 93,
+    # 94...) : l'extraction ne doit pas le comparer a celui de la ville cherchee.
+    assert scrap.titre_vers_secteur("Maison 79 m2 Antony (92)") == "Antony"
+    assert scrap.titre_vers_secteur("Appartement 29 m2 Saint-Denis (93)") == "Saint-Denis"
+    assert scrap.titre_vers_secteur("Appartement 37 m2 Languidic (56)") == "Languidic"
+
+
+def test_titre_et_cp_donnent_le_meme_secteur():
+    # Les deux extracteurs alimentent la meme colonne : un meme arrondissement
+    # doit rendre le meme libelle, sinon le One-Hot le coupe en deux.
+    assert scrap.titre_vers_secteur("Studio 18 m2 Paris 1") == scrap.cp_vers_secteur("75001", "Paris")
+    assert scrap.titre_vers_secteur("Appartement 52 m2 Paris 15") == scrap.cp_vers_secteur("75015", "Paris")
+
+
+def test_titre_sans_surface_est_une_limite_assumee():
+    # ~4 % des titres paruvendu n'ont pas de surface ("Appartement
+    # Boulogne-Billancourt (92)"). On ne les resout pas : sans surface,
+    # nettoyage_donnees les jette de toute facon au dropna. Les resoudre
+    # imposerait de distinguer le type de bien de la commune (les deux sont
+    # capitalises), pour zero annonce gagnee.
+    assert scrap.titre_vers_secteur("Appartement Boulogne-Billancourt (92)") is None
+    assert scrap.titre_vers_secteur("Atelier Villepinte (93)") is None
+
+
+def test_titre_illisible_ne_donne_pas_de_secteur():
+    assert scrap.titre_vers_secteur("Appartement 3 pieces a louer") is None
+    assert scrap.titre_vers_secteur("") is None
+    assert scrap.titre_vers_secteur(None) is None
