@@ -13,13 +13,13 @@ from playwright.sync_api import sync_playwright
 import config
 
 # Cache des pages détail Ouest-France (Lien -> [surface, pieces]) pour éviter
-# de re-scraper les mêmes annonces à chaque run.
-CACHE_OF = config.CACHE_DETAILS
+# de re-scraper les mêmes annonces à chaque run. Le chemin se lit à l'usage :
+# le sous-dossier de la recherche n'est connu qu'au lancement.
 
 def _charger_cache():
-    if os.path.exists(CACHE_OF):
+    if os.path.exists(config.chemin_cache()):
         try:
-            with open(CACHE_OF) as f:
+            with open(config.chemin_cache()) as f:
                 return json.load(f)
         except Exception:
             return {}
@@ -28,7 +28,7 @@ def _charger_cache():
 def _sauver_cache(cache):
     try:
         config.assurer_dossier_sortie()
-        with open(CACHE_OF, "w") as f:
+        with open(config.chemin_cache(), "w") as f:
             json.dump(cache, f)
     except Exception:
         pass
@@ -657,12 +657,12 @@ def run_scraping(ville="Vannes", km=10, prix_max=700):
             df = df.sort_values(by="Prix m2", ascending=True, na_position="last")
             df = df.drop(columns=["Prix m2"])
             config.assurer_dossier_sortie()
-            df.to_csv(config.CSV_DONNEES, index=False)
+            df.to_csv(config.chemin_donnees(), index=False)
             print(f"Total : {len(df)} annonces ({df['Source'].value_counts().to_dict()})")
         finally:
             print('Fin du scraping')
             browser.close()
-        return config.CSV_DONNEES
+        return config.chemin_donnees()
 
 
 if __name__ == '__main__':

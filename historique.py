@@ -11,14 +11,19 @@ import pandas as pd
 
 import config
 
-HISTORIQUE = config.CSV_HISTORIQUE
 COLS = ["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote", "Date"]
 
 
+def chemin():
+    """Le chemin se lit à l'usage : chaque recherche a son historique, et le
+    sous-dossier n'est connu qu'au lancement du run."""
+    return config.chemin_historique()
+
+
 def charger_historique():
-    if os.path.exists(HISTORIQUE):
+    if os.path.exists(chemin()):
         try:
-            hist = pd.read_csv(HISTORIQUE)
+            hist = pd.read_csv(chemin())
             # Historiques écrits avant l'introduction du Secteur : sans cette
             # migration, l'append laisserait deux colonnes à moitié vides.
             if "Commune" in hist.columns and "Secteur" not in hist.columns:
@@ -63,4 +68,4 @@ def sauver(deals, hist):
     aujourdhui["Date"] = date.today().isoformat()
     maj = pd.concat([hist, aujourdhui], ignore_index=True)
     config.assurer_dossier_sortie()
-    maj.to_csv(HISTORIQUE, index=False)
+    maj.to_csv(chemin(), index=False)

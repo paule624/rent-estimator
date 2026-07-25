@@ -18,15 +18,55 @@ CONFIG_FILE = os.path.join(RACINE, ".config.json")
 # dossier de test).
 DOSSIER_SORTIE = os.environ.get("RENT_ESTIMATOR_OUTPUT") or os.path.join(RACINE, "output")
 
-CSV_DONNEES = os.path.join(DOSSIER_SORTIE, "Data_Loyer.csv")
-CSV_DEALS = os.path.join(DOSSIER_SORTIE, "Appartement_interessant.csv")
-CSV_HISTORIQUE = os.path.join(DOSSIER_SORTIE, "historique.csv")
-CACHE_DETAILS = os.path.join(DOSSIER_SORTIE, "cache_of.json")
+# Chaque recherche a son sous-dossier. Sans cloisonnement, un run sur Paris
+# écrase les données de Vannes, et surtout les deux historiques se mélangent :
+# la détection des nouveautés comparerait un marché à un autre.
+_recherche = None
+
+
+def definir_recherche(nom):
+    """Cloisonne les artefacts du run dans output/<nom>/. À appeler une fois,
+    dès que la recherche est connue. `None` remet tout à la racine."""
+    global _recherche
+    _recherche = _slug(nom) if nom else None
+
+
+def _slug(nom):
+    garde = [c if c.isalnum() or c in "-_" else "-" for c in str(nom).strip().lower()]
+    return "".join(garde).strip("-") or None
+
+
+def dossier_run():
+    return os.path.join(DOSSIER_SORTIE, _recherche) if _recherche else DOSSIER_SORTIE
+
+
+def chemin(nom):
+    return os.path.join(dossier_run(), nom)
+
+
+def chemin_donnees():
+    """Le marché scrapé, photographie à l'instant T — réécrit à chaque run.
+    Il ne s'accumule pas : le modèle s'entraînerait sur des annonces mortes."""
+    return chemin("Data_Loyer.csv")
+
+
+def chemin_deals():
+    return chemin("Appartement_interessant.csv")
+
+
+def chemin_historique():
+    """Le seul artefact qui s'accumule : c'est lui qui porte la mémoire des
+    annonces vues, donc la détection des nouveautés et des baisses."""
+    return chemin("historique.csv")
+
+
+def chemin_cache():
+    return chemin("cache_of.json")
 
 
 def assurer_dossier_sortie():
-    """Crée le dossier de sortie au besoin. À appeler avant toute écriture."""
-    os.makedirs(DOSSIER_SORTIE, exist_ok=True)
+    """Crée le dossier du run au besoin. À appeler avant toute écriture."""
+    os.makedirs(dossier_run(), exist_ok=True)
 
 
 def charger():

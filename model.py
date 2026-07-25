@@ -58,7 +58,7 @@ def _bornes_prix_m2(prix_m2):
 
 
 def nettoyage_donnees(file=None):
-    file = file or config.CSV_DONNEES
+    file = file or config.chemin_donnees()
     df = pd.read_csv(file)
     # Vire les colocations / locations de chambre : prix par chambre, pas
     # par logement → fausse totalement le €/m² et le modèle.
@@ -134,7 +134,7 @@ def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
         df = df[df["Surface"] >= surface_min]     # assez grand (vire les micro-studios)
     df = df.sort_values(by=["Decote"], ascending=True)
     config.assurer_dossier_sortie()
-    df.to_csv(config.CSV_DEALS, index=False)
+    df.to_csv(config.chemin_deals(), index=False)
     contraintes = " et ".join(
         ([f"≤ {budget_max}€"] if budget_max is not None else [])
         + ([f"≥ {surface_min}m²"] if surface_min is not None else [])

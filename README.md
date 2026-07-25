@@ -78,13 +78,35 @@ pulls in the surrounding communes, which join the comparison as their own areas
 alongside the arrondissements.
 
 **Output:** deals are printed in the terminal (with links) and written to
-`output/Appartement_interessant.csv`.
+`output/<search>/Appartement_interessant.csv`.
 
 Everything a run produces lands in `output/`, which is git-ignored: the scraped
-corpus, the exported deals, the history and the detail cache. The directory is
-anchored to the repo, not to the working directory, so a scheduled run reads and
-writes the same history as a manual one. Set `RENT_ESTIMATOR_OUTPUT` to put it
-somewhere else.
+corpus, the exported deals, the history and the detail cache. Each search gets
+its own subdirectory — named after the profile, or after the city when the run
+comes from flags:
+
+```
+output/
+├── vannes-2/       # profile
+│   ├── Data_Loyer.csv              scraped market, rewritten every run
+│   ├── Appartement_interessant.csv exported deals
+│   ├── historique.csv              append-only, drives new/price-drop detection
+│   └── cache_of.json
+└── paris/          # rent-estimator --ville Paris
+```
+
+Two searches must not share a directory: a Paris run would overwrite the Vannes
+corpus, and — worse — a shared history would compare one market against another
+and report every listing as new.
+
+`Data_Loyer.csv` is a snapshot of the market at one moment, not a ledger: it is
+rewritten, never appended to. Accumulating it would train the model on listings
+that are months dead and count returning ones twice. The accumulation you want
+is `historique.csv`, which is append-only by design.
+
+The directory is anchored to the repo, not to the working directory, so a
+scheduled run reads and writes the same history as a manual one. Set
+`RENT_ESTIMATOR_OUTPUT` to put it somewhere else.
 
 ## Extras
 

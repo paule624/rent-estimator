@@ -10,7 +10,6 @@ import historique
 import notif
 import config
 
-CSV_DEALS = config.CSV_DEALS
 
 
 def entier_ou_none(txt):
@@ -132,8 +131,11 @@ def menu_interactif():
 
 
 def recolte_parametres():
-    """Renvoie (ville, km, prix_max, surface_min, canal, interactif) ou None si abandon.
-    `interactif` = True si on est passé par le menu (→ demander confirmation avant Chrome)."""
+    """Renvoie (ville, km, prix_max, surface_min, canal, interactif, recherche)
+    ou None si abandon.
+    `interactif` = True si on est passé par le menu (→ demander confirmation avant Chrome).
+    `recherche` nomme le sous-dossier de sortie : le profil quand il y en a un,
+    la ville sinon."""
     p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
     p.add_argument("--ville")
     p.add_argument("--km", type=int)
@@ -150,7 +152,7 @@ def recolte_parametres():
             print(f"Profil '{a.profil}' introuvable. Existants : {list(config.charger_profils())}")
             return None
         config.set_dernier_profil(a.profil)
-        return profil_vers_params(prof) + (False,)
+        return profil_vers_params(prof) + (False, a.profil)
 
     # Non-interactif : flags explicites. Un flag omis vaut "pas de contrainte",
     # comme un champ laissé vide dans le menu — une même règle pour les deux
@@ -159,7 +161,7 @@ def recolte_parametres():
         canal = a.notif or "terminal"
         notif.assurer_config(canal)
         return (a.ville, a.km if a.km is not None else 0,
-                a.prix_max, a.surface_min, canal, False)
+                a.prix_max, a.surface_min, canal, False, a.ville)
 
     # Interactif : menu profils
     print("=== Rent Estimator — Détecteur de bons plans location ===\n")
@@ -167,7 +169,8 @@ def recolte_parametres():
     if profil is None:
         return None
     print()
-    return profil_vers_params(profil) + (True,)
+    # Le menu vient d'enregistrer le profil choisi ou créé ; à défaut, la ville.
+    return profil_vers_params(profil) + (True, config.get_dernier_profil() or profil["ville"])
 
 
 def afficher_deals(deals):
@@ -196,7 +199,10 @@ def main():
     if params is None:
         print("Abandon.")
         return
-    ville, km, prix_max, surface_min, canal, interactif = params
+    ville, km, prix_max, surface_min, canal, interactif, recherche = params
+    # Chaque recherche a son sous-dossier : sans ça un run sur Paris écrase les
+    # données de Vannes, et les deux historiques se mélangent.
+    config.definir_recherche(recherche)
     criteres = " · ".join([
         ville,
         f"{km}km" if km else "commune seule",
@@ -234,7 +240,7 @@ def main():
         notif.notifier_deals(nouveaux, baisses, canal=canal)
     historique.sauver(deals, hist)
 
-    chemin = os.path.abspath(CSV_DEALS)
+    chemin = os.path.abspath(config.chemin_deals())
     print(f"\n→ Détail complet + liens : {chemin}")
 
 

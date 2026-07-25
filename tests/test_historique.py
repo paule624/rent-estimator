@@ -48,7 +48,7 @@ def test_charger_historique_migre_l_ancienne_colonne_commune(tmp_path, monkeypat
         [["u1", 500, "Vannes", 40, 2, -20, "2026-01-01"]],
         columns=["Lien", "Prix", "Commune", "Surface", "Pieces", "Decote", "Date"],
     ).to_csv(ancien, index=False)
-    monkeypatch.setattr(historique, "HISTORIQUE", str(ancien))
+    monkeypatch.setattr(historique, "chemin", lambda: str(ancien))
 
     hist = historique.charger_historique()
 
