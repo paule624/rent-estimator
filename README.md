@@ -4,7 +4,10 @@
 
 A Data Science pipeline that scrapes real-time rental listings for **any French city**, estimates a fair market rent with Machine Learning, and flags listings priced below their estimated value.
 
-Forked from a Paris-only project and generalized: multi-source scraping, automatic geo-resolution, and a CLI.
+Started from [BL1ZZ4RD-PY/Paris-Housing-Price-Estimator-Deal-Finder](https://github.com/BL1ZZ4RD-PY/Paris-Housing-Price-Estimator-Deal-Finder),
+a Paris-only pipeline, and generalized to any French city: three sources instead
+of one, automatic geo-resolution, a CLI with saved profiles, notifications, run
+history, and a test suite.
 
 ## What it does
 
@@ -175,3 +178,8 @@ trusting a green build.
 - **Non-headless** → a Chrome window opens during scraping (needed for anti-bot).
 - **Selectors** may break if the target sites change their HTML.
 - Discounts are **estimates**: a flagged "deal" can hide a defect the scraper can't see (no elevator, ground floor, works needed). Treat as leads to verify in person.
+
+## License
+
+[MIT](LICENSE). The upstream project it grew out of carries no license of its
+own; the derived portions are credited in `LICENSE` and above.
