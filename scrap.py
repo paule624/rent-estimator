@@ -10,9 +10,11 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
+import config
+
 # Cache des pages détail Ouest-France (Lien -> [surface, pieces]) pour éviter
 # de re-scraper les mêmes annonces à chaque run.
-CACHE_OF = "cache_of.json"
+CACHE_OF = config.CACHE_DETAILS
 
 def _charger_cache():
     if os.path.exists(CACHE_OF):
@@ -25,6 +27,7 @@ def _charger_cache():
 
 def _sauver_cache(cache):
     try:
+        config.assurer_dossier_sortie()
         with open(CACHE_OF, "w") as f:
             json.dump(cache, f)
     except Exception:
@@ -596,12 +599,13 @@ def run_scraping(ville="Vannes", km=10, prix_max=700):
             df["Prix m2"] = df["Prix"] / df["Surface"]
             df = df.sort_values(by="Prix m2", ascending=True, na_position="last")
             df = df.drop(columns=["Prix m2"])
-            df.to_csv('Data_Loyer.csv', index=False)
+            config.assurer_dossier_sortie()
+            df.to_csv(config.CSV_DONNEES, index=False)
             print(f"Total : {len(df)} annonces ({df['Source'].value_counts().to_dict()})")
         finally:
             print('Fin du scraping')
             browser.close()
-        return 'Data_Loyer.csv'
+        return config.CSV_DONNEES
 
 
 if __name__ == '__main__':

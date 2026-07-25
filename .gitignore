@@ -4,6 +4,17 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.pytest_cache/
+
+# Config locale : identifiants des canaux de notification, profils sauvegardés
+.config.json
+
+# Artefacts de run : données scrapées, bons plans, historique, cache détail.
+# Rien ici n'est versionné — c'est de la donnée produite, propre à ta machine.
+output/
+
+# Anciens emplacements, avant le regroupement dans output/
 cache_of.json
 historique.csv
-.config.json
+Data_Loyer.csv
+Appartement_interessant.csv

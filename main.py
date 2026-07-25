@@ -10,7 +10,7 @@ import historique
 import notif
 import config
 
-CSV_DEALS = "Appartement_interessant.csv"
+CSV_DEALS = config.CSV_DEALS
 
 
 def entier_ou_none(txt):

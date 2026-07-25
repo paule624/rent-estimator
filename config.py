@@ -1,9 +1,32 @@
-"""Config locale persistante (canaux de notif). Stockée dans .config.json,
-jamais commitée. Priorité : variable d'environnement > .config.json."""
+"""Config locale persistante (canaux de notif) et chemins des artefacts de run.
+La config est stockée dans .config.json, jamais commitée.
+Priorité : variable d'environnement > .config.json."""
 import os
 import json
 
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".config.json")
+RACINE = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(RACINE, ".config.json")
+
+# ── Artefacts de run ─────────────────────────────────────────
+# Tout ce qu'un run produit vit dans un seul dossier, ignoré par git : les
+# données scrapées, les bons plans, l'historique et le cache des pages détail.
+#
+# Le dossier est ancré sur le dépôt, JAMAIS sur le dossier courant. Sous cron
+# le cwd vaut $HOME : des chemins relatifs y écriraient un second historique,
+# vide, et chaque exécution planifiée reverrait toutes les annonces comme
+# nouvelles. RENT_ESTIMATOR_OUTPUT permet d'écrire ailleurs (disque partagé,
+# dossier de test).
+DOSSIER_SORTIE = os.environ.get("RENT_ESTIMATOR_OUTPUT") or os.path.join(RACINE, "output")
+
+CSV_DONNEES = os.path.join(DOSSIER_SORTIE, "Data_Loyer.csv")
+CSV_DEALS = os.path.join(DOSSIER_SORTIE, "Appartement_interessant.csv")
+CSV_HISTORIQUE = os.path.join(DOSSIER_SORTIE, "historique.csv")
+CACHE_DETAILS = os.path.join(DOSSIER_SORTIE, "cache_of.json")
+
+
+def assurer_dossier_sortie():
+    """Crée le dossier de sortie au besoin. À appeler avant toute écriture."""
+    os.makedirs(DOSSIER_SORTIE, exist_ok=True)
 
 
 def charger():

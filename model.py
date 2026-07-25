@@ -9,6 +9,8 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import cross_val_predict
 
+import config
+
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # Le rayon géo est déjà géré par l'URL (ray=10 autour de Vannes),
@@ -55,7 +57,8 @@ def _bornes_prix_m2(prix_m2):
     return plausibles.quantile(PERCENTILE_BAS), plausibles.quantile(PERCENTILE_HAUT)
 
 
-def nettoyage_donnees(file="Data_Loyer.csv"):
+def nettoyage_donnees(file=None):
+    file = file or config.CSV_DONNEES
     df = pd.read_csv(file)
     # Vire les colocations / locations de chambre : prix par chambre, pas
     # par logement → fausse totalement le €/m² et le modèle.
@@ -130,7 +133,8 @@ def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
     if surface_min is not None:
         df = df[df["Surface"] >= surface_min]     # assez grand (vire les micro-studios)
     df = df.sort_values(by=["Decote"], ascending=True)
-    df.to_csv("Appartement_interessant.csv", index=False)
+    config.assurer_dossier_sortie()
+    df.to_csv(config.CSV_DEALS, index=False)
     contraintes = " et ".join(
         ([f"≤ {budget_max}€"] if budget_max is not None else [])
         + ([f"≥ {surface_min}m²"] if surface_min is not None else [])

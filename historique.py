@@ -9,7 +9,9 @@ import os
 from datetime import date
 import pandas as pd
 
-HISTORIQUE = "historique.csv"
+import config
+
+HISTORIQUE = config.CSV_HISTORIQUE
 COLS = ["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote", "Date"]
 
 
@@ -60,4 +62,5 @@ def sauver(deals, hist):
     aujourdhui = deals[["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote"]].copy()
     aujourdhui["Date"] = date.today().isoformat()
     maj = pd.concat([hist, aujourdhui], ignore_index=True)
+    config.assurer_dossier_sortie()
     maj.to_csv(HISTORIQUE, index=False)

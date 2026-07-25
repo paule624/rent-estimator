@@ -73,7 +73,13 @@ pulls in the surrounding communes, which join the comparison as their own areas
 alongside the arrondissements.
 
 **Output:** deals are printed in the terminal (with links) and written to
-`Appartement_interessant.csv` (opened automatically on macOS).
+`output/Appartement_interessant.csv`.
+
+Everything a run produces lands in `output/`, which is git-ignored: the scraped
+corpus, the exported deals, the history and the detail cache. The directory is
+anchored to the repo, not to the working directory, so a scheduled run reads and
+writes the same history as a manual one. Set `RENT_ESTIMATOR_OUTPUT` to put it
+somewhere else.
 
 ## Extras
 
@@ -83,10 +89,11 @@ alongside the arrondissements.
   - Telegram: `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`
   - Email: `EMAIL_FROM`, `EMAIL_PASSWORD`, `EMAIL_TO` (opt.), `SMTP_HOST`/`SMTP_PORT` (opt.)
   - Discord: `DISCORD_WEBHOOK` (simplest — just paste a webhook URL)
-- **History** — each run appends to `historique.csv`; the next run diffs
+- **History** — each run appends to `output/historique.csv`; the next run diffs
   against it to detect new listings and price drops.
-- **Detail cache** — Ouest-France detail pages are cached in `cache_of.json`
-  so re-runs skip already-seen listings (much faster, fewer requests).
+- **Detail cache** — Ouest-France detail pages are cached in
+  `output/cache_of.json` so re-runs skip already-seen listings (much faster,
+  fewer requests).
 
 ## Tests
 
@@ -105,9 +112,10 @@ imputation, outlier filtering), and the history diff logic.
 - `scrap.py` — geo resolver, URL builder, paruvendu + Ouest-France + SeLoger scrapers, cache.
 - `model.py` — cleaning, preprocessing, ML training, deal extraction.
 - `historique.py` — run history + new-deal / price-drop detection.
-- `notif.py` — macOS + Telegram notifications.
+- `notif.py` — notification channels (terminal, macOS, Telegram, email, Discord).
+- `config.py` — saved profiles, channel credentials, output paths.
 - `tests/` — pytest suite.
-- `Appartement_interessant.csv` — exported deals.
+- `output/` — everything a run produces (git-ignored).
 
 ## Notes & limits
 
