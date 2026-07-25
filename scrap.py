@@ -239,6 +239,50 @@ def _polyline(points):
     return sortie
 
 
+# Le contour brut d'une commune compte plus de mille points (1210 pour Vannes),
+# bien trop pour tenir dans une URL. On l'échantillonne : à cette maille le bord
+# reste fidèle à quelques dizaines de mètres, comme le cercle de _cercle().
+CONTOUR_MAX_POINTS = 60
+
+
+def _geojson_commune(insee):
+    """Contour GeoJSON d'une commune, ou None si l'API ne répond pas."""
+    url = f"https://geo.api.gouv.fr/communes/{insee}?fields=contour&format=json"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as r:
+            return json.load(r).get("contour")
+    except Exception:
+        return None
+
+
+def _contour_commune(insee, max_points=CONTOUR_MAX_POINTS):
+    """Contour de la commune en (lat, lng), échantillonné et refermé.
+
+    Sert à chercher la commune seule sur SeLoger sans quitter
+    `classified-search` — la seule forme d'URL qui porte un filtre de type de
+    bien. Voir docs/adr/0003."""
+    contour = _geojson_commune(insee)
+    if not contour:
+        return None
+    coords = contour.get("coordinates") or []
+    # Une commune peut avoir des îles : on garde son anneau principal, celui
+    # qui porte le plus de points.
+    anneaux = [p[0] for p in coords] if contour.get("type") == "MultiPolygon" else coords
+    anneaux = [a for a in anneaux if a]
+    if not anneaux:
+        return None
+    anneau = max(anneaux, key=len)
+    # Division par excès : un pas arrondi vers le bas laisserait passer
+    # quelques points de plus que le plafond.
+    pas = max(1, math.ceil(len(anneau) / max_points))
+    # geo.api.gouv.fr rend du GeoJSON : coordinates = [lng, lat], l'inverse de
+    # l'ordre usuel.
+    points = [(lat, lng) for lng, lat in anneau[::pas]]
+    if points[0] != points[-1]:
+        points.append(points[0])
+    return points
+
+
 def url_ouestfrance(slug, dept, cp, km, prix_max):
     """URL de recherche Ouest-France. Le budget y sert de plafond, ce qui borne
     le nombre de pages détail à visiter ; sans budget, pas de filtre prix."""
@@ -250,26 +294,39 @@ def url_ouestfrance(slug, dept, cp, km, prix_max):
             f"?{'&'.join(params)}")
 
 
-def url_seloger(slug, dept, lat, lng, km):
+def _url_seloger_zone(points, radius):
+    """URL classified-search couvrant la zone décrite par `points`."""
+    zone = {"radius": radius, "polyline": _polyline(points)}
+    brut = json.dumps(zone, separators=(",", ":")).encode()
+    locations = base64.urlsafe_b64encode(brut).decode().rstrip("=")
+    return ("https://www.seloger.com/classified-search"
+            "?distributionTypes=Rent&estateTypes=Apartment,House"
+            f"&locations={locations}")
+
+
+def url_seloger(slug, dept, lat, lng, km, insee=None):
     """URL de recherche SeLoger.
 
     SeLoger ne résout un lieu que si `locations` porte le contour de la zone :
     le placeId seul ne suffit pas, le polyline si (vérifié en réel, cf
     docs/adr/0003). On fabrique donc le cercle de `km` autour de la ville.
 
-    `--km 0` demande la commune seule : un cercle de rayon nul n'est pas une
-    zone et SeLoger n'y répond rien, mais sa forme par commune, oui.
+    `--km 0` demande la commune seule. Un cercle de rayon nul ne décrit aucune
+    zone, mais le contour réel de la commune, si — et il permet de rester sur
+    `classified-search`, la seule forme d'URL qui restreigne le type de bien.
+    La forme par commune `immo-{slug}-{dept}/` ne le fait pas : un run sur
+    Paris en a rapporté 405 bureaux, 94 locaux et 18 parkings sur 1200
+    annonces. Elle ne sert plus que de repli si l'API géo est muette, où des
+    non-logements à trier valent mieux que zéro annonce.
 
     Pas de plafond prix, comme sur les autres sources : le modèle doit voir
     tout le marché pour situer une annonce."""
     if not km:
-        return f"https://www.seloger.com/immobilier/locations/immo-{slug}-{dept}/"
-    zone = {"radius": km, "polyline": _polyline(_cercle(lat, lng, km))}
-    brut = json.dumps(zone, separators=(",", ":")).encode()
-    locations = base64.urlsafe_b64encode(brut).decode().rstrip("=")
-    return ("https://www.seloger.com/classified-search"
-            "?distributionTypes=Rent&estateTypes=Apartment,House"
-            f"&locations={locations}")
+        contour = _contour_commune(insee) if insee else None
+        if not contour:
+            return f"https://www.seloger.com/immobilier/locations/immo-{slug}-{dept}/"
+        return _url_seloger_zone(contour, radius=0)
+    return _url_seloger_zone(_cercle(lat, lng, km), radius=km)
 
 
 def build_urls(nom, km, prix_max):
@@ -278,7 +335,7 @@ def build_urls(nom, km, prix_max):
     slug = _slug(nom_off)
     paruvendu = urls_paruvendu(nom_off, slug, cp, insee, km)
     ouestfrance = url_ouestfrance(slug, dept, cp, km, prix_max)
-    seloger = url_seloger(slug, dept, lat, lng, km)
+    seloger = url_seloger(slug, dept, lat, lng, km, insee=insee)
     return nom_off, dept, paruvendu, ouestfrance, seloger
 
 
