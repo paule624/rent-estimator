@@ -4,7 +4,8 @@ import argparse
 import questionary
 
 from scrap import run_scraping
-from model import nettoyage_donnees, model_entrainement, bon_plan
+from model import (nettoyage_donnees, model_entrainement, bon_plan,
+                   MIN_ANNONCES_PAR_SECTEUR)
 import historique
 import notif
 import config
@@ -183,6 +184,9 @@ def afficher_deals(deals):
               f"{int(r['Prix'])}€/mois")
         print(f"    Décote : {r['Decote']:.0f}%  (estimé ~{int(r['Estimation'])}€)  "
               f"[{r['Source']}]")
+        if not r.get("Fiable", True):
+            print(f"    ⚠️  Estimation peu fiable : moins de "
+                  f"{MIN_ANNONCES_PAR_SECTEUR} annonces dans ce secteur.")
         print(f"    {r['Lien']}")
     print("\n" + "=" * 60)
 

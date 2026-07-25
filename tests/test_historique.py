@@ -57,6 +57,31 @@ def test_charger_historique_migre_l_ancienne_colonne_commune(tmp_path, monkeypat
     assert hist.iloc[0]["Secteur"] == "Vannes"
 
 
+def test_notification_avoue_une_estimation_peu_fiable():
+    # L'avertissement doit voyager jusqu'au canal : un bon plan pousse sur
+    # Discord sans son doute se lit comme une certitude.
+    cols = ["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote", "Fiable"]
+    deals = pd.DataFrame(
+        [["u1", 900, "Paris 5e", 40, 2, -22, False],
+         ["u2", 800, "Paris 15e", 42, 2, -18, True]],
+        columns=cols,
+    )
+    _, message = notif._construire(deals, None)
+
+    ligne_5e = [l for l in message.split("\n\n") if "Paris 5e" in l][0]
+    ligne_15e = [l for l in message.split("\n\n") if "Paris 15e" in l][0]
+    assert "peu fiable" in ligne_5e.lower()
+    assert "peu fiable" not in ligne_15e.lower()
+
+
+def test_notification_sans_colonne_fiable_ne_plante_pas():
+    # Un historique ou un export anterieur au marqueur n'a pas la colonne.
+    cols = ["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote"]
+    deals = pd.DataFrame([["u1", 900, "Vannes", 40, 2, -22]], columns=cols)
+    _, message = notif._construire(deals, None)
+    assert "Vannes" in message
+
+
 def test_notifier_deals_vide_ne_plante_pas():
     # aucun deal → ne doit rien lever
     notif.notifier_deals(pd.DataFrame(), pd.DataFrame())

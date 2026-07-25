@@ -135,8 +135,11 @@ def _construire(nouveaux, baisses):
         if df is None:
             continue
         for _, r in df.iterrows():
+            # Un secteur trop peu représenté donne une estimation fragile : le
+            # bon plan part quand même, mais avec son doute.
+            doute = "" if r.get("Fiable", True) else "\n⚠️ estimation peu fiable"
             lignes.append(f"{label} — {r['Secteur']} {int(r['Surface'])}m² "
-                          f"{int(r['Prix'])}€ ({r['Decote']:.0f}%)\n{r['Lien']}")
+                          f"{int(r['Prix'])}€ ({r['Decote']:.0f}%){doute}\n{r['Lien']}")
     return resume, "\n\n".join(lignes)
 
 

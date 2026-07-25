@@ -29,6 +29,12 @@ PERCENTILE_BAS, PERCENTILE_HAUT = 0.025, 0.975
 # En dessous, les percentiles sur si peu de lignes couperaient de la donnée
 # saine : seul le clamp absolu s'applique.
 MIN_POUR_PERCENTILES = 20
+
+# En dessous de ce nombre d'annonces, un Secteur manque à certains plis de la
+# cross-validation (cv=5) : son One-Hot sort à zéro au moment de prédire et
+# l'estimation perd la localisation. Les bons plans concernés sont marqués
+# "estimation peu fiable", jamais masqués.
+MIN_ANNONCES_PAR_SECTEUR = 5
 # ─────────────────────────────────────────────────────────────
 
 def _normalise(nom):
@@ -80,7 +86,8 @@ def nettoyage_donnees(file="Data_Loyer.csv"):
 
 def model_entrainement(df):
     if len(df) < 5:
-        raise ValueError(f"Seulement {len(df)} annonces Vannes-10km : trop peu pour entraîner. Élargis la zone/rayon.")
+        raise ValueError(f"Seulement {len(df)} annonces retenues : trop peu pour "
+                         f"entraîner. Élargis le rayon ou la zone.")
 
     encoder = OneHotEncoder(handle_unknown="ignore")
     y = np.log1p(df["Prix"])
@@ -107,6 +114,11 @@ def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
     print(f"MAE : {mean_absolute_error(df['Prix'], df['Estimation']):.0f} €")
     print(f"R²  : {r2_score(df['Prix'], df['Estimation']):.3f}")
     df["Decote"] = ((df["Prix"] - df["Estimation"]) / df["Estimation"])*100
+    # Un secteur trop peu représenté sort des plis d'entraînement : son One-Hot
+    # est alors tout à zéro et l'estimation ignore la localisation. On le dit
+    # au lieu de masquer le bon plan — c'est une piste, pas une garantie.
+    par_secteur = df["SecteurKey"].map(df["SecteurKey"].value_counts())
+    df["Fiable"] = par_secteur >= MIN_ANNONCES_PAR_SECTEUR
     df = df[df["Decote"] <= -15]                  # sous-coté d'au moins 15 %
     if budget_max is not None:
         df = df[df["Prix"] <= budget_max]         # payable pour ton budget

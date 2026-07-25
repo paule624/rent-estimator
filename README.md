@@ -21,7 +21,7 @@ CLI args (city, radius, budget)
 2. **Scraping** — `paruvendu.fr` (full market) and `ouestfrance-immo.com` (surface fetched from each detail page). Runs non-headless to bypass DataDome anti-bot.
 3. **Cleaning** — merges sources, deduplicates the same listing across sites, removes colocations/room rentals (they distort price-per-m²), imputes missing DPE, drops price/m² outliers using bounds derived from the run's own data (so Brittany and Paris both work, with no per-city table).
 4. **Modeling** — `RandomForestRegressor` on `log1p(rent)`, One-Hot encoded **area** — the arrondissement where the city has them, the commune everywhere else — plus surface, rooms, DPE, and avg room size.
-5. **Deal detection** — `cross_val_predict` for unbiased estimates; listings ≥15% below estimate, within budget and above a surface floor, are exported.
+5. **Deal detection** — `cross_val_predict` for unbiased estimates; listings ≥15% below estimate, within budget and above a surface floor, are exported. A deal whose area has fewer than 5 listings is flagged **estimation peu fiable** rather than hidden: too thin an area drops out of the training folds, so its estimate stops accounting for location.
 
 ## Usage
 

@@ -45,6 +45,23 @@ def test_nettoyage_impute_dpe_manquant(tmp_path):
     assert df["DPE"].notna().all()    # DPE imputé
 
 
+def test_secteur_trop_mince_est_marque_pas_masque(tmp_path):
+    # Un secteur sous le seuil ne disparait pas des bons plans : il est montre
+    # avec l'aveu d'incertitude. Masquer reviendrait a cacher une piste.
+    lignes = ([[1400 + i * 30, 40 + i, "Paris 15e", 2, 4,
+                f"Appt Paris 15e {i}", f"a{i}", "paruvendu"] for i in range(10)]
+              + [[900, 40, "Paris 5e", 2, 4, "Appt Paris 5e", "b1", "paruvendu"]])
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    m, x, y = model.model_entrainement(df)
+    deals = model.bon_plan(m, x, y, df, budget_max=None, surface_min=None)
+
+    assert "Fiable" in deals.columns
+    par_secteur = dict(zip(deals["Secteur"], deals["Fiable"]))
+    assert par_secteur.get("Paris 5e") is False    # 1 annonce -> sous le seuil
+    if "Paris 15e" in par_secteur:
+        assert par_secteur["Paris 15e"] is True    # 10 annonces -> fiable
+
+
 def test_nettoyage_garde_un_marche_parisien(tmp_path):
     # Les bornes ne doivent pas etre calees sur un marche precis : a 30-40
     # €/m², Paris etait integralement jete par un plafond fixe a 30.
