@@ -62,6 +62,69 @@ def assurer_config(canal):
     return ok
 
 
+# ── découpage ────────────────────────────────────────────────
+# Discord refuse au-delà de 2000 caractères, Telegram au-delà de 4096. On reste
+# en dessous : le corps part tel quel s'il tient, sinon en plusieurs messages.
+LIMITE_DISCORD = 1900
+LIMITE_TELEGRAM = 4000
+# Un premier run compare à un historique vide : toutes les annonces sont neuves.
+# Sans plafond, une recherche sur Paris déverserait des centaines de messages.
+MAX_MESSAGES = 5
+OU_TROUVER_LA_SUITE = "voir output/Appartement_interessant.csv"
+
+
+def _decouper(corps, limite, max_messages=MAX_MESSAGES):
+    """Répartit `corps` en messages tenant sous `limite`.
+
+    La découpe suit les frontières de blocs (deux sauts de ligne), jamais
+    l'intérieur d'un bloc : un lien tranché en deux donnerait une URL morte,
+    ce qui est pire que de ne rien envoyer. Ce qui dépasse le plafond de
+    messages est annoncé — jamais effacé en silence, ce que faisait l'ancien
+    `corps[:1900]`.
+    """
+    if not corps:
+        return []
+
+    blocs, messages, courant = corps.split("\n\n"), [], ""
+    for i, bloc in enumerate(blocs):
+        candidat = f"{courant}\n\n{bloc}" if courant else bloc
+        if len(candidat) <= limite:
+            courant = candidat
+            continue
+        if courant:
+            messages.append(courant)
+        # Un bloc seul plus long que la limite ne rentrera dans aucun message :
+        # on le tronque plutôt que de boucler sans fin.
+        courant = bloc if len(bloc) <= limite else bloc[:limite - 1] + "…"
+        if len(messages) == max_messages:
+            restants = len(blocs) - i
+            return _annoncer_le_reste(messages, restants, limite)
+    if courant:
+        messages.append(courant)
+    return messages
+
+
+def _annoncer_le_reste(messages, restants, limite):
+    """Ajoute au dernier message le compte de ce qui n'a pas été envoyé.
+
+    Faire de la place en tranchant des caractères couperait un bloc en deux —
+    le défaut même qu'on corrige. On retire donc des blocs entiers du dernier
+    message, chacun venant grossir le compte annoncé.
+    """
+    blocs = messages[-1].split("\n\n")
+    while blocs:
+        suffixe = f"\n\n… et {restants} autre(s), {OU_TROUVER_LA_SUITE}"
+        corps = "\n\n".join(blocs)
+        if len(corps) + len(suffixe) <= limite:
+            messages[-1] = corps + suffixe
+            return messages
+        blocs.pop()
+        restants += 1
+    # Même vide, le dernier message doit dire ce qui manque.
+    messages[-1] = f"… et {restants} autre(s), {OU_TROUVER_LA_SUITE}"[:limite]
+    return messages
+
+
 # ── canaux ───────────────────────────────────────────────────
 def _notif_macos(titre, message):
     if not shutil.which("osascript"):
@@ -78,12 +141,14 @@ def _notif_telegram(message):
     if not token or not chat:
         return
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat, "text": message,
-                                   "disable_web_page_preview": "true"}).encode()
-    try:
-        urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=15)
-    except Exception as e:
-        print(f"  ! Telegram échec : {e}")
+    for morceau in _decouper(message, LIMITE_TELEGRAM):
+        data = urllib.parse.urlencode({"chat_id": chat, "text": morceau,
+                                       "disable_web_page_preview": "true"}).encode()
+        try:
+            urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=15)
+        except Exception as e:
+            print(f"  ! Telegram échec : {e}")
+            return
 
 def _notif_email(sujet, corps):
     exp, pwd = config.get("EMAIL_FROM"), config.get("EMAIL_PASSWORD")
@@ -107,16 +172,18 @@ def _notif_discord(corps):
     wh = config.get("DISCORD_WEBHOOK")
     if not wh:
         return
-    data = json.dumps({"content": corps[:1900]}).encode()
-    # Discord renvoie 403 si le User-Agent est celui par défaut de urllib.
-    req = urllib.request.Request(wh, data=data, headers={
-        "Content-Type": "application/json",
-        "User-Agent": "rent-estimator/0.1 (+https://github.com)",
-    })
-    try:
-        urllib.request.urlopen(req, timeout=15)
-    except Exception as e:
-        print(f"  ! Discord échec : {e}")
+    for morceau in _decouper(corps, LIMITE_DISCORD):
+        data = json.dumps({"content": morceau}).encode()
+        # Discord renvoie 403 si le User-Agent est celui par défaut de urllib.
+        req = urllib.request.Request(wh, data=data, headers={
+            "Content-Type": "application/json",
+            "User-Agent": "rent-estimator/0.1 (+https://github.com)",
+        })
+        try:
+            urllib.request.urlopen(req, timeout=15)
+        except Exception as e:
+            print(f"  ! Discord échec : {e}")
+            return
 
 
 # ── message ──────────────────────────────────────────────────
