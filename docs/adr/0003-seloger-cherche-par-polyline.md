@@ -72,6 +72,14 @@ Conséquences directes :
 - **Une panne de pagination ne coûte que les pages restantes.** Les pages déjà
   lues sont rendues telles quelles ; c'est ce qui distingue une source
   partiellement lue d'une source perdue.
+- **Les 4 pages de Vannes ne sont pas une pagination tronquée.** Sondé sur le
+  site le 2026-07-25, recherche du profil `Vannes-2` (rayon 10 km) : le H1
+  annonce « 119 maisons et appartements à louer », la pagination affiche
+  `1 2 3 4`, et les cartes se comptent 30 + 30 + 30 + 29 = 119. Le bouton
+  « page suivante » est absent en page 4 parce qu'il n'y a pas de page 5. Le
+  « 125 annonces » auquel ce total a été comparé vient de la forme par commune
+  du tableau ci-dessus — sans rayon et sans filtre de type de bien. L'écart
+  n'est pas une perte, c'est le filtrage qui fonctionne. Ne pas rouvrir.
 
 ## Alternatives écartées
 
