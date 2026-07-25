@@ -4,8 +4,12 @@ Outil de détection de locations sous-cotées : scrape des annonces, estime un l
 
 ## Language
 
+**Recherche**:
+Ce qu'un run couvre : une ville, un rayon, des filtres. Elle porte le nom du **Profil** qui la rejoue, ou celui de sa ville si elle n'a pas été sauvée. Chaque Recherche garde son propre **Historique** — sinon la détection des nouveautés comparerait un marché à un autre.
+_Avoid_: run, requête, compartiment
+
 **Profil**:
-Un jeu de paramètres nommé et sauvegardé (recherche + canal de notif) qu'on rejoue sans tout ressaisir.
+Une **Recherche** nommée et sauvegardée, plus son **Canal**, qu'on rejoue sans tout ressaisir.
 _Avoid_: config, preset, réglage
 
 **Bon plan** (Deal):
@@ -38,7 +42,7 @@ _Avoid_: aberration, outlier, atypique
 
 ## Relationships
 
-- Un **Profil** fixe une recherche + un **Canal**
+- Un **Profil** fixe une **Recherche** + un **Canal**
 - Un run couvre plusieurs **Secteurs** ; le modèle compare les prix entre eux (One-Hot)
 - Un run produit des **Bons plans**, chacun avec sa **Décote**
 - L'**Historique** distingue les **Bons plans** nouveaux des déjà-vus

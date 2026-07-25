@@ -130,6 +130,18 @@ def menu_interactif():
             # retour au menu (boucle)
 
 
+def _nom_recherche(profil):
+    """Le nom du compartiment : celui du Profil qui rejoue la Recherche, ou la
+    ville si elle n'a pas été sauvée.
+
+    Se fier au dernier profil ouvert faisait atterrir une recherche non sauvée
+    dans le dossier d'une autre ville, historiques mélangés compris."""
+    dernier = config.get_dernier_profil()
+    if dernier and config.get_profil(dernier) == profil:
+        return dernier
+    return profil["ville"]
+
+
 def recolte_parametres():
     """Renvoie (ville, km, prix_max, surface_min, canal, interactif, recherche)
     ou None si abandon.
@@ -169,8 +181,7 @@ def recolte_parametres():
     if profil is None:
         return None
     print()
-    # Le menu vient d'enregistrer le profil choisi ou créé ; à défaut, la ville.
-    return profil_vers_params(profil) + (True, config.get_dernier_profil() or profil["ville"])
+    return profil_vers_params(profil) + (True, _nom_recherche(profil))
 
 
 def _afficher_lignes(df):
