@@ -1,0 +1,31 @@
+# The scrapers themselves cannot run here: DataDome blocks headless browsers
+# and datacenter IPs alike. Everything else can — parsing, cleaning, the model
+# and the notification splitting all run against captured fixtures, no network.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # Installs the playwright package, not its browsers: the suite imports
+      # scrap.py but never launches Chromium.
+      - run: pip install -e ".[dev]"
+
+      - run: python -m pytest -q

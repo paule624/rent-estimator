@@ -1,5 +1,7 @@
 # Rent Estimator & Deal Finder (France)
 
+[![tests](https://github.com/paule624/rent-estimator/actions/workflows/tests.yml/badge.svg)](https://github.com/paule624/rent-estimator/actions/workflows/tests.yml)
+
 A Data Science pipeline that scrapes real-time rental listings for **any French city**, estimates a fair market rent with Machine Learning, and flags listings priced below their estimated value.
 
 Forked from a Paris-only project and generalized: multi-source scraping, automatic geo-resolution, and a CLI.
@@ -148,7 +150,13 @@ python -m pytest
 
 Covers parsing helpers, area extraction, SeLoger card parsing (against real
 captured HTML in `tests/fixtures/`), cleaning (colocation removal, dedup, DPE
-imputation, outlier filtering), and the history diff logic.
+imputation, outlier filtering), the history diff logic, and notification
+splitting.
+
+CI runs the same suite on every push and pull request. The scrapers are not
+exercised there — DataDome blocks headless browsers and datacenter IPs — so
+after a change to `scrap.py`, run it once against the real sites before
+trusting a green build.
 
 ## Files
 
