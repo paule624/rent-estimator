@@ -32,12 +32,17 @@ _Avoid_: quartier, zone, ville
 Marqueur porté par un **Bon plan** dont le **Secteur** a trop peu d'annonces pour une estimation solide. Le bon plan est montré quand même, avec l'aveu d'incertitude — jamais masqué.
 _Avoid_: invalide, rejeté
 
+**Hors marché**:
+Annonce dont le prix au m² sort du marché observé sur le run, sans pour autant être invraisemblable. Elle est évaluée et peut devenir un **Bon plan**, mais elle n'entre pas dans l'apprentissage du modèle : trop douteuse pour enseigner, trop intéressante pour être jetée.
+_Avoid_: aberration, outlier, atypique
+
 ## Relationships
 
 - Un **Profil** fixe une recherche + un **Canal**
 - Un run couvre plusieurs **Secteurs** ; le modèle compare les prix entre eux (One-Hot)
 - Un run produit des **Bons plans**, chacun avec sa **Décote**
 - L'**Historique** distingue les **Bons plans** nouveaux des déjà-vus
+- Une annonce **Hors marché** est évaluée mais n'entraîne pas le modèle ; les autres font les deux
 
 ## Flagged ambiguities
 

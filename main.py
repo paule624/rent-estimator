@@ -173,16 +173,8 @@ def recolte_parametres():
     return profil_vers_params(profil) + (True, config.get_dernier_profil() or profil["ville"])
 
 
-def afficher_deals(deals):
-    print("\n" + "=" * 60)
-    if deals is None or len(deals) == 0:
-        print("  Aucun bon plan trouvé avec ces critères.")
-        print("  Essaie d'élargir : budget +, surface -, ou rayon +.")
-        print("=" * 60)
-        return
-    print(f"  {len(deals)} BON(S) PLAN(S) — triés par décote")
-    print("=" * 60)
-    for _, r in deals.iterrows():
+def _afficher_lignes(df):
+    for _, r in df.iterrows():
         print(f"\n  {r['Secteur']} — {int(r['Surface'])}m², {int(r['Pieces'])} pièces — "
               f"{int(r['Prix'])}€/mois")
         print(f"    Décote : {r['Decote']:.0f}%  (estimé ~{int(r['Estimation'])}€)  "
@@ -191,6 +183,31 @@ def afficher_deals(deals):
             print(f"    ⚠️  Estimation peu fiable : moins de "
                   f"{MIN_ANNONCES_PAR_SECTEUR} annonces dans ce secteur.")
         print(f"    {r['Lien']}")
+
+
+def afficher_deals(deals):
+    print("\n" + "=" * 60)
+    if deals is None or len(deals) == 0:
+        print("  Aucun bon plan trouvé avec ces critères.")
+        print("  Essaie d'élargir : budget +, surface -, ou rayon +.")
+        print("=" * 60)
+        return
+    if "HorsMarche" in deals.columns:
+        hors = deals["HorsMarche"].astype(bool)
+        marche, a_verifier = deals[~hors], deals[hors]
+    else:
+        marche, a_verifier = deals, deals.iloc[0:0]
+
+    print(f"  {len(marche)} BON(S) PLAN(S) — triés par décote")
+    print("=" * 60)
+    _afficher_lignes(marche)
+    # Prix hors du marché observé : forte décote, faible crédibilité. Séparés
+    # pour ne pas occuper la tête de liste (cf docs/adr/0004).
+    if len(a_verifier):
+        print("\n" + "=" * 60)
+        print(f"  {len(a_verifier)} À VÉRIFIER — prix hors du marché observé")
+        print("=" * 60)
+        _afficher_lignes(a_verifier)
     print("\n" + "=" * 60)
 
 

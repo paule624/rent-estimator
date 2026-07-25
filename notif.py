@@ -187,26 +187,54 @@ def _notif_discord(corps):
 
 
 # ── message ──────────────────────────────────────────────────
+def _scinder(df):
+    """Sépare le marché observé de ce qui reste à vérifier (cf ADR 0004)."""
+    if df is None or len(df) == 0 or "HorsMarche" not in df.columns:
+        return df, None
+    hors = df["HorsMarche"].astype(bool)
+    return df[~hors], (df[hors] if hors.any() else None)
+
+
+def _blocs(label, df):
+    if df is None:
+        return []
+    lignes = []
+    for _, r in df.iterrows():
+        # Un secteur trop peu représenté donne une estimation fragile : le
+        # bon plan part quand même, mais avec son doute.
+        doute = "" if r.get("Fiable", True) else "\n⚠️ estimation peu fiable"
+        lignes.append(f"{label} — {r['Secteur']} {int(r['Surface'])}m² "
+                      f"{int(r['Prix'])}€ ({r['Decote']:.0f}%){doute}\n{r['Lien']}")
+    return lignes
+
+
 def _construire(nouveaux, baisses):
-    n_new = 0 if nouveaux is None else len(nouveaux)
-    n_bai = 0 if baisses is None else len(baisses)
+    new_marche, new_hors = _scinder(nouveaux)
+    bai_marche, bai_hors = _scinder(baisses)
+    n_new = 0 if new_marche is None else len(new_marche)
+    n_bai = 0 if bai_marche is None else len(bai_marche)
+    n_hors = sum(0 if d is None else len(d) for d in (new_hors, bai_hors))
+
     parts = []
     if n_new:
         parts.append(f"{n_new} nouveau(x) bon(s) plan(s)")
     if n_bai:
         parts.append(f"{n_bai} baisse(s) de prix")
+    # Compté à part : le résumé sert de titre, il ne doit pas gonfler d'annonces
+    # dont on doute.
+    if n_hors:
+        parts.append(f"{n_hors} à vérifier")
     resume = " · ".join(parts)
 
     lignes = [f"🏠 Rent Estimator — {resume}\n"]
-    for label, df in (("🆕 Nouveau", nouveaux), ("📉 Baisse", baisses)):
-        if df is None:
-            continue
-        for _, r in df.iterrows():
-            # Un secteur trop peu représenté donne une estimation fragile : le
-            # bon plan part quand même, mais avec son doute.
-            doute = "" if r.get("Fiable", True) else "\n⚠️ estimation peu fiable"
-            lignes.append(f"{label} — {r['Secteur']} {int(r['Surface'])}m² "
-                          f"{int(r['Prix'])}€ ({r['Decote']:.0f}%){doute}\n{r['Lien']}")
+    for label, df in (("🆕 Nouveau", new_marche), ("📉 Baisse", bai_marche)):
+        lignes += _blocs(label, df)
+    # En fin de message : leur décote est la plus forte sans être la plus
+    # crédible, et la notification est plafonnée à quelques messages.
+    if n_hors:
+        lignes.append("⚠️ Hors marché — prix hors du marché observé, à vérifier")
+        for label, df in (("🆕 Nouveau", new_hors), ("📉 Baisse", bai_hors)):
+            lignes += _blocs(label, df)
     return resume, "\n\n".join(lignes)
 
 

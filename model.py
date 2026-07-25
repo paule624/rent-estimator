@@ -21,15 +21,15 @@ FILTRE_SECTEURS = None
 BUDGET_MAX = 700    # loyer max affiché dans les bons plans (€/mois). None pour tout voir.
 SURFACE_MIN = 33    # surface mini affichée dans les bons plans (m²). None pour tout voir.
 
-# Filtrage des aberrations. Les bornes se calent sur la donnée du run : un
-# plafond fixe cale sur un marché en jette un autre (à 30 €/m², Vannes passe
-# et Paris est intégralement rejeté). Le clamp absolu ne sert qu'à écarter les
-# erreurs de parsing, il est volontairement très large.
+# Deux sorts, pas un (cf docs/adr/0004). Le clamp absolu JETTE : à 1 ou 200
+# €/m² il n'y a pas de prix, il y a une erreur de lecture. Il est volontairement
+# très large. Les percentiles, eux, ne font que MARQUER "hors marché" : une
+# annonce sous le marché est peut-être exactement le bon plan cherché. Les
+# bornes se calent sur la donnée du run — un plafond fixe cale sur un marché en
+# jette un autre (à 30 €/m², Vannes passe et Paris est intégralement rejeté).
 PRIX_M2_PLANCHER = 3
 PRIX_M2_PLAFOND = 60
 PERCENTILE_BAS, PERCENTILE_HAUT = 0.025, 0.975
-# En dessous, les percentiles sur si peu de lignes couperaient de la donnée
-# saine : seul le clamp absolu s'applique.
 MIN_POUR_PERCENTILES = 20
 
 # En dessous de ce nombre d'annonces, un Secteur manque à certains plis de la
@@ -37,6 +37,8 @@ MIN_POUR_PERCENTILES = 20
 # l'estimation perd la localisation. Les bons plans concernés sont marqués
 # "estimation peu fiable", jamais masqués.
 MIN_ANNONCES_PAR_SECTEUR = 5
+
+COLONNES_MODELE = ["Surface", "SecteurKey", "Pieces", "DPE", "Surface par pieces"]
 # ─────────────────────────────────────────────────────────────
 
 def _normalise(nom):
@@ -45,16 +47,17 @@ def _normalise(nom):
     return s.lower().strip()
 
 def _bornes_prix_m2(prix_m2):
-    """Bornes basse et haute du €/m² plausible, calées sur la donnée du run.
+    """Bornes du marché observé, calées sur la donnée du run.
 
-    Le clamp absolu écarte d'abord les erreurs de parsing, puis les percentiles
-    resserrent sur le marché réellement observé — ce qui marche aussi bien à
-    Vannes (~12 €/m²) qu'à Paris (~35), sans table par ville.
+    Reçoit du €/m² déjà passé au clamp absolu. Les percentiles resserrent sur le
+    marché réellement observé — ce qui marche aussi bien à Vannes (~12 €/m²) qu'à
+    Paris (~35), sans table par ville. Sur trop peu de lignes ils couperaient de
+    la donnée saine : le clamp fait alors seul office de bornes, et rien n'est
+    marqué hors marché.
     """
-    plausibles = prix_m2[(prix_m2 >= PRIX_M2_PLANCHER) & (prix_m2 <= PRIX_M2_PLAFOND)]
-    if len(plausibles) < MIN_POUR_PERCENTILES:
+    if len(prix_m2) < MIN_POUR_PERCENTILES:
         return PRIX_M2_PLANCHER, PRIX_M2_PLAFOND
-    return plausibles.quantile(PERCENTILE_BAS), plausibles.quantile(PERCENTILE_HAUT)
+    return prix_m2.quantile(PERCENTILE_BAS), prix_m2.quantile(PERCENTILE_HAUT)
 
 
 def nettoyage_donnees(file=None):
@@ -76,8 +79,12 @@ def nettoyage_donnees(file=None):
     # Filtre géo optionnel (le rayon est déjà fait par l'URL)
     if FILTRE_SECTEURS:
         df = df[df['Secteur'].map(_normalise).isin(FILTRE_SECTEURS)]
+    # Le clamp absolu jette : à ce niveau c'est une erreur de lecture, pas un
+    # prix. Les percentiles, eux, ne font que marquer : une annonce sous le
+    # marché est peut-être exactement le bon plan cherché (cf ADR 0004).
+    df = df[(df["Prix m2"] >= PRIX_M2_PLANCHER) & (df["Prix m2"] <= PRIX_M2_PLAFOND)]
     bas, haut = _bornes_prix_m2(df["Prix m2"])
-    df = df[(df["Prix m2"] >= bas) & (df["Prix m2"] <= haut)]
+    df["HorsMarche"] = (df["Prix m2"] < bas) | (df["Prix m2"] > haut)
     df["Surface par pieces"] = df["Surface"]/df["Pieces"]
     # Clé secteur normalisée (sans accents/casse) pour fusionner les sources
     # ex "Saint-Avé" (paruvendu) == "Saint Ave" (OF) == "saint-ave"
@@ -93,13 +100,16 @@ def nettoyage_donnees(file=None):
     return df
 
 def model_entrainement(df):
-    if len(df) < 5:
-        raise ValueError(f"Seulement {len(df)} annonces retenues : trop peu pour "
+    # Le modèle apprend le marché observé seul. Les hors marché restent dans
+    # `df` — elles seront estimées par bon_plan(), sans avoir pesé ici.
+    appris = df[~df["HorsMarche"]] if "HorsMarche" in df.columns else df
+    if len(appris) < 5:
+        raise ValueError(f"Seulement {len(appris)} annonces retenues : trop peu pour "
                          f"entraîner. Élargis le rayon ou la zone.")
 
     encoder = OneHotEncoder(handle_unknown="ignore")
-    y = np.log1p(df["Prix"])
-    x = df[["Surface", "SecteurKey", "Pieces", "DPE", "Surface par pieces"]]
+    y = np.log1p(appris["Prix"])
+    x = appris[COLONNES_MODELE]
 
     preprocessor = ColumnTransformer(
         transformers=[('cat', encoder, ["SecteurKey"])],
@@ -116,23 +126,40 @@ def model_entrainement(df):
 
 def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
     df = df.copy()
-    cv = min(5, len(df))  # évite de crasher si peu d'annonces
-    y_pred_log = cross_val_predict(model, x, y, cv=cv)
-    df['Estimation'] = np.expm1(y_pred_log)
-    print(f"MAE : {mean_absolute_error(df['Prix'], df['Estimation']):.0f} €")
-    print(f"R²  : {r2_score(df['Prix'], df['Estimation']):.3f}")
+    if "HorsMarche" not in df.columns:
+        df["HorsMarche"] = False
+    hors_marche = df["HorsMarche"]
+
+    # Le marché observé s'estime hors-pli : chaque annonce est prédite par des
+    # plis qui ne la contiennent pas.
+    cv = min(5, len(x))  # évite de crasher si peu d'annonces
+    df.loc[x.index, "Estimation"] = np.expm1(cross_val_predict(model, x, y, cv=cv))
+    # Une hors marché n'a pas entraîné : `predict` sur le modèle déjà ajusté est
+    # du hors-échantillon franc, de même nature que le hors-pli. Pas de fuite.
+    if hors_marche.any():
+        df.loc[hors_marche, "Estimation"] = np.expm1(
+            model.predict(df.loc[hors_marche, COLONNES_MODELE]))
+
+    appris = df.loc[x.index]
+    print(f"MAE : {mean_absolute_error(appris['Prix'], appris['Estimation']):.0f} €")
+    print(f"R²  : {r2_score(appris['Prix'], appris['Estimation']):.3f}")
     df["Decote"] = ((df["Prix"] - df["Estimation"]) / df["Estimation"])*100
     # Un secteur trop peu représenté sort des plis d'entraînement : son One-Hot
     # est alors tout à zéro et l'estimation ignore la localisation. On le dit
     # au lieu de masquer le bon plan — c'est une piste, pas une garantie.
-    par_secteur = df["SecteurKey"].map(df["SecteurKey"].value_counts())
+    # Le comptage porte sur ce qui a appris : une hors marché seule dans son
+    # secteur se compterait elle-même et passerait pour fiable.
+    appris_par_secteur = appris["SecteurKey"].value_counts()
+    par_secteur = df["SecteurKey"].map(appris_par_secteur).fillna(0)
     df["Fiable"] = par_secteur >= MIN_ANNONCES_PAR_SECTEUR
     df = df[df["Decote"] <= -15]                  # sous-coté d'au moins 15 %
     if budget_max is not None:
         df = df[df["Prix"] <= budget_max]         # payable pour ton budget
     if surface_min is not None:
         df = df[df["Surface"] >= surface_min]     # assez grand (vire les micro-studios)
-    df = df.sort_values(by=["Decote"], ascending=True)
+    # Les hors marché ferment la marche : leur décote est la plus forte sans
+    # être la plus crédible, et la notification est plafonnée.
+    df = df.sort_values(by=["HorsMarche", "Decote"], ascending=[True, True])
     config.assurer_dossier_sortie()
     df.to_csv(config.chemin_deals(), index=False)
     contraintes = " et ".join(
