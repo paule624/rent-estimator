@@ -447,21 +447,30 @@ def scrape_paruvendu(context, url):
 # ═════════════════════════════════════════════════════════════
 # SOURCE 2 — OUEST-FRANCE IMMO (surface uniquement sur page détail)
 # ═════════════════════════════════════════════════════════════
-def _of_detail(page, url):
+def _of_caracteristiques(html):
+    """Surface et nombre de pièces lus dans le tableau de caractéristiques.
+
+    « Pièce » au singulier sur un T1, « Pièces » au-delà : lire le seul pluriel
+    perdait tous les studios, silencieusement — l'annonce partait ensuite au
+    `dropna` du nettoyage."""
     surface = pieces = None
+    soup = BeautifulSoup(html, "html.parser")
+    for line in soup.select(".detail-caracteristiques__line"):
+        txt = line.get_text(" ", strip=True)
+        if "Surface habitable" in txt:
+            surface = _num(txt.split(":")[-1])
+        elif txt.startswith("Pièce"):
+            pieces = _num(txt.split(":")[-1])
+    return surface, pieces
+
+
+def _of_detail(page, url):
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(2500)
-        soup = BeautifulSoup(page.content(), "html.parser")
-        for line in soup.select(".detail-caracteristiques__line"):
-            txt = line.get_text(" ", strip=True)
-            if "Surface habitable" in txt:
-                surface = _num(txt.split(":")[-1])
-            elif txt.startswith("Pièces"):
-                pieces = _num(txt.split(":")[-1])
+        return _of_caracteristiques(page.content())
     except Exception:
-        pass
-    return surface, pieces
+        return None, None
 
 def scrape_ouestfrance(context, url):
     if not url:
