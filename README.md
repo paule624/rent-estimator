@@ -147,6 +147,20 @@ at the scheduled time, cron skips the slot and never catches up. On a laptop
 closed overnight, that is the difference between a tool that runs and one that
 never does. `launchd` runs the missed job on wake.
 
+**macOS: keep the repo out of `~/Documents`.** That folder — like `~/Desktop`
+and `~/Downloads` — is protected by TCC, and a process started by launchd has no
+access to it. The run dies before Python finishes booting:
+
+```
+PermissionError: [Errno 1] Operation not permitted: '.../.venv/pyvenv.cfg'
+```
+
+Manual runs work regardless, since the terminal already holds that permission,
+so this only ever surfaces on the scheduled run — in the log. Somewhere like
+`~/dev/` carries no such restriction. Granting Full Disk Access to the Python
+interpreter also works, but that interpreter is shared: every script you run
+with it would inherit the same access.
+
 **Headless Linux servers** need a virtual display — the unit calls `xvfb-run`
 for that (`apt install xvfb`). On a desktop session with a real display, drop
 the prefix.

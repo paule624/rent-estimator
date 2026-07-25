@@ -7,6 +7,10 @@
   cron does not have. And if the Mac is asleep at the scheduled time, launchd
   runs the job on wake — cron silently skips the slot and never catches up.
 
+  macOS protects ~/Documents, ~/Desktop and ~/Downloads: a launchd job cannot
+  read a repo living there and dies with "Operation not permitted" on
+  .venv/pyvenv.cfg. Keep the repo somewhere like ~/dev/.
+
   Install:
     sed -e 's|/PATH/TO/REPO|'"$PWD"'|g' -e 's|PROFILE_NAME|Vannes-2|g' \
         deploy/com.rent-estimator.daily.plist \
