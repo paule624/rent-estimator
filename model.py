@@ -114,7 +114,11 @@ def bon_plan(model, x, y, df, budget_max=BUDGET_MAX, surface_min=SURFACE_MIN):
         df = df[df["Surface"] >= surface_min]     # assez grand (vire les micro-studios)
     df = df.sort_values(by=["Decote"], ascending=True)
     df.to_csv("Appartement_interessant.csv", index=False)
-    print(f"{len(df)} bon(s) plan(s) ≤ {budget_max}€ et ≥ {surface_min}m² exporté(s).")
+    contraintes = " et ".join(
+        ([f"≤ {budget_max}€"] if budget_max is not None else [])
+        + ([f"≥ {surface_min}m²"] if surface_min is not None else [])
+    ) or "sans contrainte de budget ni de surface"
+    print(f"{len(df)} bon(s) plan(s) {contraintes} exporté(s).")
 
     return df
 

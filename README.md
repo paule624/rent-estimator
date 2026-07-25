@@ -17,10 +17,10 @@ CLI args (city, radius, budget)
 
 ## Pipeline
 
-1. **Geo resolution** — city name → INSEE code + postal code via the free `geo.api.gouv.fr` API, used to build each site's search URL.
+1. **Geo resolution** — city name → INSEE code + postal code via the free `geo.api.gouv.fr` API, used to build each site's search URL. Cities with arrondissements get one search per arrondissement (see below).
 2. **Scraping** — `paruvendu.fr` (full market) and `ouestfrance-immo.com` (surface fetched from each detail page). Runs non-headless to bypass DataDome anti-bot.
-3. **Cleaning** — merges sources, deduplicates the same listing across sites, removes colocations/room rentals (they distort price-per-m²), imputes missing DPE, filters price/m² outliers.
-4. **Modeling** — `RandomForestRegressor` on `log1p(rent)`, One-Hot encoded commune (normalized across sources), plus surface, rooms, DPE, and avg room size.
+3. **Cleaning** — merges sources, deduplicates the same listing across sites, removes colocations/room rentals (they distort price-per-m²), imputes missing DPE, drops price/m² outliers using bounds derived from the run's own data (so Brittany and Paris both work, with no per-city table).
+4. **Modeling** — `RandomForestRegressor` on `log1p(rent)`, One-Hot encoded **area** — the arrondissement where the city has them, the commune everywhere else — plus surface, rooms, DPE, and avg room size.
 5. **Deal detection** — `cross_val_predict` for unbiased estimates; listings ≥15% below estimate, within budget and above a surface floor, are exported.
 
 ## Usage
@@ -32,6 +32,7 @@ playwright install chromium
 rent-estimator                       # interactive: arrow-key menu of saved profiles
 rent-estimator --profil vannes       # replay a saved profile, no prompts (for cron)
 rent-estimator --ville Auray --km 15 --max 800   # explicit flags, no prompts
+rent-estimator --ville Paris         # all 20 arrondissements, no price cap
 ```
 
 **Profiles.** A run's settings (city, radius, budget, min surface, notification
@@ -41,12 +42,31 @@ pick another / create a new search / delete one. Profiles live in `.config.json`
 
 Run `python main.py` if you prefer not to install the package.
 
-| Flag | Default | Meaning |
+**Nothing is applied unless you ask for it.** The values shown greyed out in the
+prompts are examples, not defaults — leave a field empty and you get no
+constraint at all. Omitting a flag does the same, so `--ville Paris` searches
+Paris itself with no price or surface cap rather than inheriting someone else's
+budget.
+
+| Flag | Omitted | Meaning |
 |------|---------|---------|
-| `--ville` | Vannes | City to search |
-| `--km` | 10 | Radius around the city (km) |
-| `--max` | 700 | Max monthly rent for exported deals (€) |
-| `--surface-min` | 33 | Minimum surface for exported deals (m²) |
+| `--ville` | *required* | City to search |
+| `--km` | the commune only | Radius around the city (km) |
+| `--max` | no cap | Max monthly rent for exported deals (€) |
+| `--surface-min` | no minimum | Minimum surface for exported deals (m²) |
+
+### Cities with arrondissements
+
+Paris, Lyon and Marseille are each a *single* commune, so the commune name
+carries no price signal — the arrondissement does. These cities are searched one
+arrondissement at a time (20 searches for Paris), which is both the only INSEE
+code the sources accept and the only way to get clean per-arrondissement data.
+The model then compares arrondissements against each other, so a flat in the
+16th is judged against the 16th, not against the 19th.
+
+`--km 0` (or an empty radius) keeps the search inside the city. A radius above 0
+pulls in the surrounding communes, which join the comparison as their own areas
+alongside the arrondissements.
 
 **Output:** deals are printed in the terminal (with links) and written to
 `Appartement_interessant.csv` (opened automatically on macOS).

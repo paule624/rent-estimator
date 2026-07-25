@@ -161,16 +161,23 @@ def urls_paruvendu(nom_off, slug, cp, insee, km):
             for rang, cp_arr in enumerate(range(debut, fin + 1))]
 
 
+def url_ouestfrance(slug, dept, cp, km, prix_max):
+    """URL de recherche Ouest-France. Le budget y sert de plafond, ce qui borne
+    le nombre de pages détail à visiter ; sans budget, pas de filtre prix."""
+    params = []
+    if prix_max is not None:
+        params.append(f"prix=0_{prix_max}")
+    params += [f"rayon={km}", "types=appartement,maison"]
+    return (f"https://www.ouestfrance-immo.com/louer/{slug}-{dept}-{cp}/"
+            f"?{'&'.join(params)}")
+
+
 def build_urls(nom, km, prix_max):
     """Construit les URLs de recherche paruvendu + Ouest-France pour une ville."""
     nom_off, insee, cp, dept = resoudre_ville(nom)
     slug = _slug(nom_off)
     paruvendu = urls_paruvendu(nom_off, slug, cp, insee, km)
-    # Ouest-France : plafonné au budget (borne le nb de pages détail à visiter)
-    ouestfrance = (
-        f"https://www.ouestfrance-immo.com/louer/{slug}-{dept}-{cp}/"
-        f"?prix=0_{prix_max}&rayon={km}&types=appartement,maison"
-    )
+    ouestfrance = url_ouestfrance(slug, dept, cp, km, prix_max)
     return nom_off, dept, paruvendu, ouestfrance
 
 
@@ -347,7 +354,9 @@ def scrape_ouestfrance(context, url):
 # ═════════════════════════════════════════════════════════════
 def run_scraping(ville="Vannes", km=10, prix_max=700):
     nom_off, dept, pv_urls, of_url = build_urls(ville, km, prix_max)
-    print(f"Ville : {nom_off} (dept {dept}) | rayon {km} km | budget OF ≤ {prix_max}€")
+    budget = f"budget OF ≤ {prix_max}€" if prix_max is not None else "budget OF illimité"
+    rayon = f"rayon {km} km" if km else "commune seule"
+    print(f"Ville : {nom_off} (dept {dept}) | {rayon} | {budget}")
     if len(pv_urls) > 1:
         print(f"{len(pv_urls)} arrondissements à parcourir sur paruvendu.")
     print("ℹ️  Une fenêtre navigateur va s'ouvrir automatiquement (Chromium de "

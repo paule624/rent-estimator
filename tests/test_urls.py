@@ -36,6 +36,17 @@ def test_lyon_et_marseille_ont_leurs_propres_bases_insee():
     assert "marseille-13001" in marseille[0] and "codeINSEE=13201" in marseille[0]
 
 
+def test_ouestfrance_sans_budget_n_a_pas_de_filtre_prix():
+    # Un budget laisse vide veut dire "sans plafond" : le filtre prix doit
+    # disparaitre de l'URL, pas s'y ecrire "prix=0_None".
+    url = scrap.url_ouestfrance("vannes", "56", "56000", km=10, prix_max=None)
+    assert "prix=" not in url
+    assert "rayon=10" in url
+
+    avec = scrap.url_ouestfrance("vannes", "56", "56000", km=10, prix_max=700)
+    assert "prix=0_700" in avec
+
+
 def test_le_rayon_passe_par_lol_pas_par_ray():
     # `ray` est inerte cote paruvendu : ray=10 et ray=50 rendent le meme
     # resultat. Tout le rayon passe par `lol`.

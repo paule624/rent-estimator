@@ -12,11 +12,18 @@ import config
 CSV_DEALS = "Appartement_interessant.csv"
 
 
-def _int(txt, defaut):
-    try:
-        return int(str(txt).strip())
-    except (ValueError, AttributeError):
-        return defaut
+def entier_ou_none(txt):
+    """Valeur saisie, ou None si le champ est laissé vide — un champ vide vaut
+    "pas de contrainte", pas une valeur par défaut cachée."""
+    t = str(txt).strip() if txt is not None else ""
+    return int(t) if t.isdigit() else None
+
+
+def valider_entier_optionnel(txt):
+    """Validateur questionary : accepte un entier positif ou rien du tout.
+    Sans lui, une faute de frappe passerait pour "aucune contrainte"."""
+    t = str(txt).strip() if txt is not None else ""
+    return True if t == "" or t.isdigit() else "Entre un nombre, ou laisse vide"
 
 
 def _canal_choices():
@@ -24,7 +31,9 @@ def _canal_choices():
 
 
 def _profil_label(nom, p):
-    return f"{nom} · {p['km']}km · ≤{p['prix_max']}€ · {p['canal']}"
+    rayon = f"{p['km']}km" if p.get("km") else "commune seule"
+    budget = f"≤{p['prix_max']}€" if p.get("prix_max") else "sans plafond"
+    return f"{nom} · {rayon} · {budget} · {p['canal']}"
 
 
 def profil_vers_params(p):
@@ -32,13 +41,26 @@ def profil_vers_params(p):
 
 
 # ── flux « nouvelle recherche » ──────────────────────────────
+def _demander_entier(message, exemple):
+    """Prompt numérique dont l'exemple reste grisé : laisser vide = None."""
+    return entier_ou_none(questionary.text(
+        message, placeholder=exemple, validate=valider_entier_optionnel).ask())
+
+
 def nouvelle_recherche():
-    ville = questionary.text("Ville", default="Vannes").ask()
-    if ville is None:
-        return None
-    km = _int(questionary.text("Rayon (km)", default="10").ask(), 10)
-    prix_max = _int(questionary.text("Budget max (€/mois)", default="700").ask(), 700)
-    surface_min = _int(questionary.text("Surface mini (m²)", default="33").ask(), 33)
+    # Seule la ville est obligatoire : sans elle il n'y a rien à chercher.
+    ville = None
+    while not ville:
+        ville = questionary.text("Ville", placeholder="ex : Vannes, Paris, Lyon").ask()
+        if ville is None:      # Ctrl-C
+            return None
+        ville = ville.strip()
+
+    km = _demander_entier("Rayon (km) · vide = la commune seule", "ex : 10")
+    prix_max = _demander_entier("Budget max (€/mois) · vide = sans plafond", "ex : 700")
+    surface_min = _demander_entier("Surface mini (m²) · vide = sans minimum", "ex : 33")
+    if km is None:
+        km = 0                 # la commune seule, sans élargissement
     canal = questionary.select("Où recevoir les bons plans ?", choices=_canal_choices()).ask()
     if canal is None:
         return None
@@ -129,11 +151,14 @@ def recolte_parametres():
         config.set_dernier_profil(a.profil)
         return profil_vers_params(prof) + (False,)
 
-    # Non-interactif : flags explicites
+    # Non-interactif : flags explicites. Un flag omis vaut "pas de contrainte",
+    # comme un champ laissé vide dans le menu — une même règle pour les deux
+    # modes. `is not None` et pas `or` : --km 0 est un choix, pas un vide.
     if a.ville is not None:
         canal = a.notif or "terminal"
         notif.assurer_config(canal)
-        return (a.ville, a.km or 10, a.prix_max or 700, a.surface_min or 33, canal, False)
+        return (a.ville, a.km if a.km is not None else 0,
+                a.prix_max, a.surface_min, canal, False)
 
     # Interactif : menu profils
     print("=== Rent Estimator — Détecteur de bons plans location ===\n")
@@ -168,15 +193,21 @@ def main():
         print("Abandon.")
         return
     ville, km, prix_max, surface_min, canal, interactif = params
+    criteres = " · ".join([
+        ville,
+        f"{km}km" if km else "commune seule",
+        f"≤{prix_max}€" if prix_max else "sans plafond",
+        f"≥{surface_min}m²" if surface_min else "sans surface mini",
+    ])
 
     if interactif:
-        print(f"\n▶ Recherche : {ville} · {km}km · ≤{prix_max}€ · ≥{surface_min}m² · notif {canal}")
+        print(f"\n▶ Recherche : {criteres} · notif {canal}")
         print("  Une fenêtre Chrome va s'ouvrir automatiquement (elle se ferme seule à la fin).")
         if not questionary.confirm("Commencer ?", default=True).ask():
             print("Annulé.")
             return
 
-    print(f"\n1. Web scraping — {ville}, {km}km, ≤{prix_max}€...")
+    print(f"\n1. Web scraping — {criteres}...")
     fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
     if not fichier:
         return
