@@ -79,8 +79,13 @@ def nettoyage_donnees(file="Data_Loyer.csv"):
     # Clé secteur normalisée (sans accents/casse) pour fusionner les sources
     # ex "Saint-Avé" (paruvendu) == "Saint Ave" (OF) == "saint-ave"
     df["SecteurKey"] = df["Secteur"].map(_normalise)
-    # Dédoublonne les annonces présentes sur plusieurs sites (même bien)
-    df = df.drop_duplicates(subset=["Prix", "Surface", "Pieces", "SecteurKey"])
+    # Dédoublonne les annonces présentes sur plusieurs sites (même bien).
+    # La surface est arrondie pour la seule comparaison : SeLoger la donne au
+    # dixième (50,4 m²) là où paruvendu l'affiche entière, et sans cet arrondi
+    # le même bien compterait deux fois. Les données gardent la valeur exacte.
+    doublon = df.assign(SurfaceArrondie=df["Surface"].round()).duplicated(
+        subset=["Prix", "SurfaceArrondie", "Pieces", "SecteurKey"])
+    df = df[~doublon]
     print(f"{len(df)} annonces retenues. Secteurs : {sorted(df['Secteur'].unique())}")
     return df
 

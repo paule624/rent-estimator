@@ -35,6 +35,29 @@ def test_nettoyage_deduplique(tmp_path):
     assert len(df) == 1
 
 
+def test_nettoyage_deduplique_malgre_une_surface_au_dixieme(tmp_path):
+    # SeLoger donne la surface au dixieme (50,4 m²), paruvendu a l'entier.
+    # Sans arrondi dans la cle, le meme bien compte double et sur-pondere les
+    # annonces multi-diffusees dans l'apprentissage.
+    lignes = [
+        [600, 50, "Vannes", 3, 4, "Maison 50 m2 Vannes", "u1", "paruvendu"],
+        [600, 50.4, "Vannes", 3, 4, "Maison a louer Vannes", "u2", "seloger"],
+    ]
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    assert len(df) == 1
+
+
+def test_nettoyage_garde_la_surface_exacte(tmp_path):
+    # L'arrondi sert la cle de dedoublonnage, pas les donnees : le modele
+    # apprend sur la surface reelle.
+    lignes = [
+        [600, 50.4, "Vannes", 3, 4, "Maison a louer Vannes", "u1", "seloger"],
+        [700, 62.8, "Vannes", 3, 4, "Appartement a louer Vannes", "u2", "seloger"],
+    ]
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    assert set(df["Surface"]) == {50.4, 62.8}
+
+
 def test_nettoyage_impute_dpe_manquant(tmp_path):
     lignes = [
         [500, 40, "Vannes", 2, 4, "Appt 40 m2 Vannes", "u1", "paruvendu"],
