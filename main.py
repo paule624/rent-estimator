@@ -154,7 +154,7 @@ def afficher_deals(deals):
     print(f"  {len(deals)} BON(S) PLAN(S) — triés par décote")
     print("=" * 60)
     for _, r in deals.iterrows():
-        print(f"\n  {r['Commune']} — {int(r['Surface'])}m², {int(r['Pieces'])} pièces — "
+        print(f"\n  {r['Secteur']} — {int(r['Surface'])}m², {int(r['Pieces'])} pièces — "
               f"{int(r['Prix'])}€/mois")
         print(f"    Décote : {r['Decote']:.0f}%  (estimé ~{int(r['Estimation'])}€)  "
               f"[{r['Source']}]")

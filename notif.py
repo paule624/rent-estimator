@@ -135,7 +135,7 @@ def _construire(nouveaux, baisses):
         if df is None:
             continue
         for _, r in df.iterrows():
-            lignes.append(f"{label} — {r['Commune']} {int(r['Surface'])}m² "
+            lignes.append(f"{label} — {r['Secteur']} {int(r['Surface'])}m² "
                           f"{int(r['Prix'])}€ ({r['Decote']:.0f}%)\n{r['Lien']}")
     return resume, "\n\n".join(lignes)
 

@@ -3,7 +3,7 @@ import model
 
 
 def _ecrire_csv(tmp_path, lignes):
-    cols = ["Prix", "Surface", "Commune", "Pieces", "DPE", "Titre", "Lien", "Source"]
+    cols = ["Prix", "Surface", "Secteur", "Pieces", "DPE", "Titre", "Lien", "Source"]
     p = tmp_path / "data.csv"
     pd.DataFrame(lignes, columns=cols).to_csv(p, index=False)
     return str(p)
@@ -43,6 +43,15 @@ def test_nettoyage_impute_dpe_manquant(tmp_path):
     df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
     assert len(df) == 2               # la ligne sans DPE n'est PAS jetée
     assert df["DPE"].notna().all()    # DPE imputé
+
+
+def test_nettoyage_garde_un_marche_parisien(tmp_path):
+    # Les bornes ne doivent pas etre calees sur un marche precis : a 30-40
+    # €/m², Paris etait integralement jete par un plafond fixe a 30.
+    lignes = [[1400, 40, f"Paris {i}e", 2, 4, f"Appt 40 m2 Paris {i}e", f"u{i}", "paruvendu"]
+              for i in range(1, 21)]                       # 35 €/m²
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    assert len(df) == 20
 
 
 def test_nettoyage_filtre_outliers(tmp_path):

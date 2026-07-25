@@ -10,13 +10,18 @@ from datetime import date
 import pandas as pd
 
 HISTORIQUE = "historique.csv"
-COLS = ["Lien", "Prix", "Commune", "Surface", "Pieces", "Decote", "Date"]
+COLS = ["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote", "Date"]
 
 
 def charger_historique():
     if os.path.exists(HISTORIQUE):
         try:
-            return pd.read_csv(HISTORIQUE)
+            hist = pd.read_csv(HISTORIQUE)
+            # Historiques écrits avant l'introduction du Secteur : sans cette
+            # migration, l'append laisserait deux colonnes à moitié vides.
+            if "Commune" in hist.columns and "Secteur" not in hist.columns:
+                hist = hist.rename(columns={"Commune": "Secteur"})
+            return hist
         except Exception:
             pass
     return pd.DataFrame(columns=COLS)
@@ -52,7 +57,7 @@ def sauver(deals, hist):
     """Ajoute les deals du jour à l'historique (append-only)."""
     if deals is None or len(deals) == 0:
         return
-    aujourdhui = deals[["Lien", "Prix", "Commune", "Surface", "Pieces", "Decote"]].copy()
+    aujourdhui = deals[["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote"]].copy()
     aujourdhui["Date"] = date.today().isoformat()
     maj = pd.concat([hist, aujourdhui], ignore_index=True)
     maj.to_csv(HISTORIQUE, index=False)
