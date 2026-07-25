@@ -10,6 +10,15 @@ def test_num_extrait_nombre():
     assert scrap._num(None) is None
 
 
+def test_num_lit_les_milliers_quel_que_soit_l_espace():
+    # SeLoger separe les milliers par U+202F (espace fine insecable) et colle
+    # U+00A0 avant l'euro. Sans les couvrir, "4 600 €" se lit 4 : un loyer
+    # parisien passerait pour l'affaire du siecle.
+    assert scrap._num("4 600 € /mois") == 4600
+    assert scrap._num("2 450 €") == 2450
+    assert scrap._num("1 250 €") == 1250
+
+
 def test_slug():
     assert scrap._slug("Vannes") == "vannes"
     assert scrap._slug("Saint-Avé") == "saint-ave"

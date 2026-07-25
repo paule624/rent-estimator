@@ -1,3 +1,5 @@
+import base64
+import math
 import os
 import re
 import json
@@ -43,9 +45,13 @@ DPE_MAP = {'A': 7, 'B': 6, 'C': 5, 'D': 4, 'E': 3, 'F': 2, 'G': 1}
 
 
 def _num(txt):
+    """Premier nombre d'un texte, séparateurs de milliers compris.
+
+    Les sites mélangent les espaces : U+202F entre les milliers, U+00A0 avant
+    l'euro. On les retire tous — sinon "4 600 €" se lit 4."""
     if not txt:
         return None
-    m = re.search(r"\d+(?:[.,]\d+)?", txt.replace(" ", "").replace(" ", ""))
+    m = re.search(r"\d+(?:[.,]\d+)?", re.sub(r"\s", "", txt))
     return float(m.group(0).replace(",", ".")) if m else None
 
 
@@ -131,17 +137,41 @@ def titre_vers_secteur(titre):
     return m.group(1).strip() if m else None
 
 
+def adresse_vers_secteur(adresse):
+    """Secteur depuis une adresse de carte SeLoger, qui porte le code postal :
+    'Zone Rurale Nord Ouest, Vannes (56000)' -> 'Vannes'. Voir docs/adr/0002.
+
+    Le quartier qui précède la commune est ignoré : la maille du modèle est
+    l'arrondissement, pas le quartier (cf CONTEXT.md)."""
+    if not adresse:
+        return None
+    m = re.search(r"([^,]+?)\s*\((\d{5})\)\s*$", adresse)
+    if not m:
+        return None
+    return cp_vers_secteur(m.group(2), m.group(1).strip())
+
+
+def _centre(commune):
+    """(lat, lng) du centre d'une commune rendue par geo.api.gouv.fr.
+
+    L'API rend du GeoJSON, où `coordinates` vaut [lng, lat] — l'inverse de
+    l'ordre usuel. SeLoger cherche autour de ce point : les inverser
+    déplacerait la recherche de plusieurs milliers de kilomètres en silence."""
+    lng, lat = commune["centre"]["coordinates"]
+    return lat, lng
+
+
 def resoudre_ville(nom):
-    """Résout un nom de ville en (nom officiel, code INSEE, code postal, département)
-    via l'API gratuite geo.api.gouv.fr."""
+    """Résout un nom de ville en (nom officiel, code INSEE, code postal,
+    département, (lat, lng)) via l'API gratuite geo.api.gouv.fr."""
     url = ("https://geo.api.gouv.fr/communes?nom=" + urllib.parse.quote(nom) +
-           "&fields=nom,code,codesPostaux&boost=population&limit=1")
+           "&fields=nom,code,codesPostaux,centre&boost=population&limit=1")
     with urllib.request.urlopen(url, timeout=15) as r:
         data = json.load(r)
     if not data:
         raise ValueError(f"Ville introuvable via l'API : {nom!r}")
     c = data[0]
-    return c["nom"], c["code"], c["codesPostaux"][0], c["code"][:2]
+    return c["nom"], c["code"], c["codesPostaux"][0], c["code"][:2], _centre(c)
 
 
 def urls_paruvendu(nom_off, slug, cp, insee, km):
@@ -171,6 +201,41 @@ def urls_paruvendu(nom_off, slug, cp, insee, km):
             for rang, cp_arr in enumerate(range(debut, fin + 1))]
 
 
+def _cercle(lat, lng, km, cotes=32):
+    """Contour fermé d'un disque de `km` autour d'un point, en (lat, lng).
+
+    C'est le périmètre que SeLoger applique à la recherche : il porte `--km`.
+    32 côtés suffisent à en approcher le bord à quelques dizaines de mètres."""
+    points = []
+    for i in range(cotes + 1):          # +1 : on referme sur le point de départ
+        angle = 2 * math.pi * i / cotes
+        d_lat = (km / 111.32) * math.cos(angle)
+        d_lng = (km / (111.32 * math.cos(math.radians(lat)))) * math.sin(angle)
+        points.append((lat + d_lat, lng + d_lng))
+    return points
+
+
+def _polyline(points):
+    """Encode une suite de (lat, lng) au format Google Encoded Polyline.
+
+    Format imposé par SeLoger, qui ne résout un lieu que si l'URL porte le
+    contour de la zone cherchée. Voir docs/adr/0003."""
+    def morceau(valeur):
+        valeur = ~(valeur << 1) if valeur < 0 else valeur << 1
+        sortie = ""
+        while valeur >= 0x20:
+            sortie += chr((0x20 | (valeur & 0x1F)) + 63)
+            valeur >>= 5
+        return sortie + chr(valeur + 63)
+
+    sortie, lat_prec, lng_prec = "", 0, 0
+    for lat, lng in points:
+        lat_e5, lng_e5 = round(lat * 1e5), round(lng * 1e5)
+        sortie += morceau(lat_e5 - lat_prec) + morceau(lng_e5 - lng_prec)
+        lat_prec, lng_prec = lat_e5, lng_e5
+    return sortie
+
+
 def url_ouestfrance(slug, dept, cp, km, prix_max):
     """URL de recherche Ouest-France. Le budget y sert de plafond, ce qui borne
     le nombre de pages détail à visiter ; sans budget, pas de filtre prix."""
@@ -182,13 +247,36 @@ def url_ouestfrance(slug, dept, cp, km, prix_max):
             f"?{'&'.join(params)}")
 
 
+def url_seloger(slug, dept, lat, lng, km):
+    """URL de recherche SeLoger.
+
+    SeLoger ne résout un lieu que si `locations` porte le contour de la zone :
+    le placeId seul ne suffit pas, le polyline si (vérifié en réel, cf
+    docs/adr/0003). On fabrique donc le cercle de `km` autour de la ville.
+
+    `--km 0` demande la commune seule : un cercle de rayon nul n'est pas une
+    zone et SeLoger n'y répond rien, mais sa forme par commune, oui.
+
+    Pas de plafond prix, comme sur les autres sources : le modèle doit voir
+    tout le marché pour situer une annonce."""
+    if not km:
+        return f"https://www.seloger.com/immobilier/locations/immo-{slug}-{dept}/"
+    zone = {"radius": km, "polyline": _polyline(_cercle(lat, lng, km))}
+    brut = json.dumps(zone, separators=(",", ":")).encode()
+    locations = base64.urlsafe_b64encode(brut).decode().rstrip("=")
+    return ("https://www.seloger.com/classified-search"
+            "?distributionTypes=Rent&estateTypes=Apartment,House"
+            f"&locations={locations}")
+
+
 def build_urls(nom, km, prix_max):
-    """Construit les URLs de recherche paruvendu + Ouest-France pour une ville."""
-    nom_off, insee, cp, dept = resoudre_ville(nom)
+    """Construit les URLs de recherche des trois sources pour une ville."""
+    nom_off, insee, cp, dept, (lat, lng) = resoudre_ville(nom)
     slug = _slug(nom_off)
     paruvendu = urls_paruvendu(nom_off, slug, cp, insee, km)
     ouestfrance = url_ouestfrance(slug, dept, cp, km, prix_max)
-    return nom_off, dept, paruvendu, ouestfrance
+    seloger = url_seloger(slug, dept, lat, lng, km)
+    return nom_off, dept, paruvendu, ouestfrance, seloger
 
 
 # ═════════════════════════════════════════════════════════════
@@ -360,10 +448,113 @@ def scrape_ouestfrance(context, url):
 
 
 # ═════════════════════════════════════════════════════════════
+# SOURCE 3 — SELOGER (tout est sur la carte, pas de page détail)
+# ═════════════════════════════════════════════════════════════
+def _sl_texte(carte, testid):
+    """Texte d'un champ de carte SeLoger. Les `data-testid` du site sont
+    sémantiques et stables, contrairement à ses classes CSS générées."""
+    element = carte.select_one(f'[data-testid="{testid}"]')
+    return element.get_text(" ", strip=True) if element else ""
+
+
+def _sl_titre(carte):
+    """Titre commercial d'une carte SeLoger ("Appartement à louer").
+
+    Le titre n'a pas de `data-testid` à lui ; il est le frère qui précède les
+    caractéristiques. On passe par cette fratrie plutôt que par les classes
+    CSS du site, qui sont générées et changent à chaque déploiement.
+
+    Le titre doit rester exempt des caractéristiques : elles annoncent
+    « 1 chambre » sur presque toutes les cartes, et le filtre anti-colocation
+    de `nettoyage_donnees` jetterait alors la source entière."""
+    faits = carte.select_one('[data-testid="cardmfe-keyfacts-testid"]')
+    titre = faits.find_previous_sibling() if faits else None
+    return titre.get_text(" ", strip=True) if titre else None
+
+
+def annonces_seloger(html):
+    """Annonces d'une page de résultats SeLoger, aux colonnes COLONNES."""
+    lignes = []
+    soupe = BeautifulSoup(html, "html.parser")
+    for carte in soupe.select('[data-testid="serp-core-classified-card-testid"]'):
+        faits = _sl_texte(carte, "cardmfe-keyfacts-testid")
+        # "2 pièces · 1 chambre · 83,2 m² · Étage 2/2" — viser "pièce(s)" et
+        # non "chambre", les deux sont des nombres voisins dans la même ligne.
+        pieces = re.search(r"(\d+)\s*pièces?\b", faits)
+        surface = re.search(r"([\d,.]+)\s*m²", faits)
+        lien = carte.select_one("a[href]")
+        lignes.append([
+            _num(_sl_texte(carte, "cardmfe-price-testid")),
+            float(surface.group(1).replace(",", ".")) if surface else None,
+            adresse_vers_secteur(_sl_texte(carte, "cardmfe-description-box-address")),
+            int(pieces.group(1)) if pieces else None,
+            DPE_MAP.get(_sl_texte(carte, "card-mfe-energy-performance-class")),
+            _sl_titre(carte),
+            lien["href"] if lien else None,
+            "seloger",
+        ])
+    return pd.DataFrame(lignes, columns=COLONNES)
+
+
+def _sl_ecarter_banniere(page):
+    """Retire la bannière de consentement, qui recouvre la pagination et
+    intercepte les clics.
+
+    On la retire au lieu de cliquer « OK » : le site ne propose pas de refus
+    en un clic, et accepter le pistage à la place de l'utilisateur ne nous
+    appartient pas. Le contexte navigateur est jetable, rien n'est conservé
+    d'un run à l'autre."""
+    try:
+        page.evaluate(
+            "document.querySelector('#usercentrics-root')?.remove()")
+    except Exception:
+        pass
+
+
+def scrape_seloger(context, url):
+    """Parcourt les pages de résultats SeLoger et rend leurs annonces.
+
+    La page suivante s'obtient par un clic : le paramètre `pg=` de l'URL est
+    inerte (il rend toujours la même page), comme `ray` chez paruvendu."""
+    if not url:
+        return pd.DataFrame(columns=COLONNES)
+    page = context.new_page()
+    frames = []
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(6000)
+        _sl_ecarter_banniere(page)
+        for i in range(1, PAGES_MAX + 1):
+            frames.append(annonces_seloger(page.content()))
+            if i == PAGES_MAX:
+                print(f"[seloger] plafonné à {PAGES_MAX} pages (voir PAGES_MAX)")
+                break
+            suivante = page.locator('button[aria-label="page suivante"]')
+            if suivante.count() == 0 or not suivante.first.is_enabled():
+                break
+            # dispatch_event plutôt que click() : la page empile des habillages
+            # (consentement, promos) qui interceptent un clic par coordonnées.
+            # L'événement DOM va au bouton quoi qu'il y ait par-dessus.
+            suivante.first.dispatch_event("click")
+            page.wait_for_timeout(4000)   # le rendu des cartes est asynchrone
+    except Exception as e:
+        # Les pages déjà lues restent bonnes : une panne à la page 4 ne doit
+        # pas coûter les trois premières, ni la source entière.
+        print(f"[seloger] interrompu après {len(frames)} page(s) : {e}")
+    finally:
+        page.close()
+    if not frames:
+        return pd.DataFrame(columns=COLONNES)
+    df = pd.concat(frames, ignore_index=True)
+    print(f"[seloger] {len(df)} annonce(s) récupérées sur {len(frames)} page(s)")
+    return df
+
+
+# ═════════════════════════════════════════════════════════════
 # ORCHESTRATEUR
 # ═════════════════════════════════════════════════════════════
 def run_scraping(ville="Vannes", km=10, prix_max=700):
-    nom_off, dept, pv_urls, of_url = build_urls(ville, km, prix_max)
+    nom_off, dept, pv_urls, of_url, sl_url = build_urls(ville, km, prix_max)
     budget = f"budget OF ≤ {prix_max}€" if prix_max is not None else "budget OF illimité"
     rayon = f"rayon {km} km" if km else "commune seule"
     print(f"Ville : {nom_off} (dept {dept}) | {rayon} | {budget}")
@@ -383,6 +574,7 @@ def run_scraping(ville="Vannes", km=10, prix_max=700):
         try:
             frames = [scrape_paruvendu(context, u) for u in pv_urls]
             frames.append(scrape_ouestfrance(context, of_url))
+            frames.append(scrape_seloger(context, sl_url))
             remplies = [f for f in frames if not f.empty]
             if not remplies:
                 print("Aucune annonce trouvée. Les sélecteurs des sites ont "
