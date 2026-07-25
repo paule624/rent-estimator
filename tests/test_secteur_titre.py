@@ -10,6 +10,30 @@ def test_titre_paris_donne_l_arrondissement():
     assert scrap.titre_vers_secteur("Appartement 52 m2 Paris 15") == "Paris 15e"
 
 
+def test_titre_donne_l_arrondissement_dans_toutes_les_villes_qui_en_ont():
+    # Titres releves sur paruvendu pour Lyon et Marseille : le format est
+    # exactement celui de Paris. Une ville ajoutee a
+    # VILLES_A_ARRONDISSEMENTS doit etre lue par cet extracteur, sinon elle
+    # scrape mais perd son Secteur.
+    assert scrap.titre_vers_secteur("Appartement 83 m2 Lyon 8") == "Lyon 8e"
+    assert scrap.titre_vers_secteur("Appartement 76 m2 Lyon 9") == "Lyon 9e"
+    assert scrap.titre_vers_secteur("Appartement 22 m2 Marseille 6") == "Marseille 6e"
+    assert scrap.titre_vers_secteur("Appartement 39 m2 Marseille 10") == "Marseille 10e"
+
+
+def test_titre_et_cp_concordent_hors_paris():
+    assert scrap.titre_vers_secteur("Appartement 83 m2 Lyon 8") == scrap.cp_vers_secteur("69008", "Lyon")
+    assert scrap.titre_vers_secteur("Appartement 39 m2 Marseille 10") == scrap.cp_vers_secteur("13010", "Marseille")
+
+
+def test_rang_hors_plage_n_est_pas_un_arrondissement():
+    # Lyon s'arrete au 9e, Paris au 20e. Un rang au-dela vient d'autre chose
+    # que d'un arrondissement (numero de rue, lot) : ne pas fabriquer un
+    # Secteur fantome que le One-Hot prendrait pour une categorie.
+    assert scrap.titre_vers_secteur("Appartement 30 m2 Lyon 12") is None
+    assert scrap.titre_vers_secteur("Appartement 30 m2 Paris 25") is None
+
+
 def test_titre_commune_donne_la_commune():
     # Le departement varie d'une annonce a l'autre dans un meme run (92, 93,
     # 94...) : l'extraction ne doit pas le comparer a celui de la ville cherchee.

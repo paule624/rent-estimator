@@ -109,12 +109,22 @@ def url_of_vers_secteur(href):
 
 def titre_vers_secteur(titre):
     """Secteur depuis un titre paruvendu, seule source géo de ce site.
-    Ex "Appartement 52 m2 Paris 15" -> "Paris 15e". Voir docs/adr/0002."""
+    Ex "Appartement 52 m2 Paris 15" -> "Paris 15e". Voir docs/adr/0002.
+
+    Le format est identique dans les trois villes à arrondissements (relevé sur
+    le site) : on les balaie toutes plutôt que de coder Paris en dur. Un rang
+    hors plage ne désigne pas un arrondissement, on le laisse au cas commune.
+    """
     if not titre:
         return None
-    m = re.search(r"Paris\s+(\d{1,2})\b", titre)
-    if m:
-        return _libelle_arrondissement("Paris", int(m.group(1)))
+    for ville, plages in VILLES_A_ARRONDISSEMENTS.items():
+        m = re.search(rf"\b{ville}\s+(\d{{1,2}})\b", titre)
+        if not m:
+            continue
+        rang = int(m.group(1))
+        debut, fin = plages["cp"]
+        if 1 <= rang <= fin - debut + 1:
+            return _libelle_arrondissement(ville, rang)
     # "<type> <surface> m2 <Commune> (<dept>)" — le dept varie d'une annonce
     # a l'autre, on ne le contraint pas.
     m = re.search(r"m[²2]\s+(.+?)\s*\(\s*\d{2,3}\s*\)", titre)
