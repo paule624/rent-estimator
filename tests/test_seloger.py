@@ -93,6 +93,18 @@ def test_champs_d_une_annonce():
     assert premiere["Lien"].startswith("https://www.seloger.com/")
 
 
+def test_lien_ne_traine_pas_la_recherche_derriere_lui():
+    # SeLoger reinjecte toute la recherche dans le lien de chaque annonce,
+    # polyline compris, plus un fragment de suivi : ~700 caracteres la ou 80
+    # suffisent. Les bons plans partent par Telegram et Discord, ou une
+    # poignee de liens pareils fait deborder le message.
+    df = scrap.annonces_seloger(_fixture("seloger_vannes.html"))
+    for lien in df["Lien"]:
+        assert "?" not in lien and "#" not in lien
+        assert lien.endswith(".htm")
+        assert len(lien) < 120
+
+
 def test_titre_ne_ramasse_pas_les_caracteristiques():
     # Le Titre nourrit le filtre anti-colocation de nettoyage_donnees, qui
     # cherche "coloc|chambre". Les caracteristiques SeLoger disent "1 chambre"

@@ -472,6 +472,19 @@ def _sl_titre(carte):
     return titre.get_text(" ", strip=True) if titre else None
 
 
+def _sl_lien(carte):
+    """Lien vers l'annonce, débarrassé du contexte de recherche.
+
+    SeLoger réinjecte la recherche entière derrière le lien de chaque carte —
+    polyline compris — puis un fragment de suivi : ~700 caractères là où le
+    chemin de l'annonce suffit. Les bons plans partent par Telegram ou
+    Discord, où quelques liens pareils font déborder le message."""
+    lien = carte.select_one("a[href]")
+    if not lien or not lien.get("href"):
+        return None
+    return lien["href"].split("?")[0].split("#")[0]
+
+
 def annonces_seloger(html):
     """Annonces d'une page de résultats SeLoger, aux colonnes COLONNES."""
     lignes = []
@@ -482,7 +495,6 @@ def annonces_seloger(html):
         # non "chambre", les deux sont des nombres voisins dans la même ligne.
         pieces = re.search(r"(\d+)\s*pièces?\b", faits)
         surface = re.search(r"([\d,.]+)\s*m²", faits)
-        lien = carte.select_one("a[href]")
         lignes.append([
             _num(_sl_texte(carte, "cardmfe-price-testid")),
             float(surface.group(1).replace(",", ".")) if surface else None,
@@ -490,7 +502,7 @@ def annonces_seloger(html):
             int(pieces.group(1)) if pieces else None,
             DPE_MAP.get(_sl_texte(carte, "card-mfe-energy-performance-class")),
             _sl_titre(carte),
-            lien["href"] if lien else None,
+            _sl_lien(carte),
             "seloger",
         ])
     return pd.DataFrame(lignes, columns=COLONNES)
