@@ -21,14 +21,14 @@ FILTRE_SECTEURS = None
 BUDGET_MAX = 700    # loyer max affiché dans les bons plans (€/mois). None pour tout voir.
 SURFACE_MIN = 33    # surface mini affichée dans les bons plans (m²). None pour tout voir.
 
-# Deux sorts, pas un (cf docs/adr/0004). Le clamp absolu JETTE : à 1 ou 200
-# €/m² il n'y a pas de prix, il y a une erreur de lecture. Il est volontairement
-# très large. Les percentiles, eux, ne font que MARQUER "hors marché" : une
-# annonce sous le marché est peut-être exactement le bon plan cherché. Les
-# bornes se calent sur la donnée du run — un plafond fixe cale sur un marché en
-# jette un autre (à 30 €/m², Vannes passe et Paris est intégralement rejeté).
+# Deux sorts, pas un (cf docs/adr/0004). Le plancher absolu JETTE : sous 3 €/m²
+# il n'y a pas de prix, il y a une erreur de lecture — et une lecture trop basse
+# fabrique un faux bon plan spectaculaire, donc elle ne doit jamais sortir.
+# Il n'y a PAS de plafond symétrique : une lecture trop haute ne fabrique rien
+# (sa décote est positive, le seuil -15 % l'élimine), et le percentile suffit à
+# la tenir hors de l'entraînement en la marquant hors marché. Un plafond fixe
+# jetait 22 % du marché parisien — des logements ordinaires, pas des anomalies.
 PRIX_M2_PLANCHER = 3
-PRIX_M2_PLAFOND = 60
 PERCENTILE_BAS, PERCENTILE_HAUT = 0.025, 0.975
 MIN_POUR_PERCENTILES = 20
 
@@ -49,14 +49,13 @@ def _normalise(nom):
 def _bornes_prix_m2(prix_m2):
     """Bornes du marché observé, calées sur la donnée du run.
 
-    Reçoit du €/m² déjà passé au clamp absolu. Les percentiles resserrent sur le
-    marché réellement observé — ce qui marche aussi bien à Vannes (~12 €/m²) qu'à
-    Paris (~35), sans table par ville. Sur trop peu de lignes ils couperaient de
-    la donnée saine : le clamp fait alors seul office de bornes, et rien n'est
-    marqué hors marché.
+    Reçoit du €/m² déjà passé au plancher absolu. Les percentiles resserrent sur
+    le marché réellement observé — ce qui marche aussi bien à Vannes (~12 €/m²)
+    qu'à Paris (~35), sans table par ville. Sur trop peu de lignes ils
+    couperaient de la donnée saine : rien n'est alors marqué hors marché.
     """
     if len(prix_m2) < MIN_POUR_PERCENTILES:
-        return PRIX_M2_PLANCHER, PRIX_M2_PLAFOND
+        return PRIX_M2_PLANCHER, float("inf")
     return prix_m2.quantile(PERCENTILE_BAS), prix_m2.quantile(PERCENTILE_HAUT)
 
 
@@ -79,10 +78,10 @@ def nettoyage_donnees(file=None):
     # Filtre géo optionnel (le rayon est déjà fait par l'URL)
     if FILTRE_SECTEURS:
         df = df[df['Secteur'].map(_normalise).isin(FILTRE_SECTEURS)]
-    # Le clamp absolu jette : à ce niveau c'est une erreur de lecture, pas un
+    # Le plancher absolu jette : à ce niveau c'est une erreur de lecture, pas un
     # prix. Les percentiles, eux, ne font que marquer : une annonce sous le
     # marché est peut-être exactement le bon plan cherché (cf ADR 0004).
-    df = df[(df["Prix m2"] >= PRIX_M2_PLANCHER) & (df["Prix m2"] <= PRIX_M2_PLAFOND)]
+    df = df[df["Prix m2"] >= PRIX_M2_PLANCHER]
     bas, haut = _bornes_prix_m2(df["Prix m2"])
     df["HorsMarche"] = (df["Prix m2"] < bas) | (df["Prix m2"] > haut)
     df["Surface par pieces"] = df["Surface"]/df["Pieces"]

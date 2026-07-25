@@ -165,6 +165,18 @@ def test_annonce_sous_le_marche_est_marquee_pas_jetee(tmp_path):
     assert not bool(par_lien.loc["u20", "HorsMarche"])
 
 
+def test_un_marche_cher_n_est_pas_jete_par_un_plafond(tmp_path):
+    # Des studios parisiens a ~80 €/m² sont ordinaires, pas des erreurs de
+    # lecture. Un plafond absolu a 60 en jetait 22% du marche parisien, des
+    # deux populations a la fois — ce que l'ADR 0004 refuse pour le percentile.
+    lignes = [[800 + i, 10, f"Paris {1 + i % 3}e", 1, 4,
+               f"Studio {i} Paris", f"u{i}", "seloger"] for i in range(30)]
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+
+    assert len(df) == 30
+    assert not df["HorsMarche"].all()      # un marche, pas 30 anomalies
+
+
 def test_annonce_hors_du_clamp_absolu_reste_jetee(tmp_path):
     # Deux sorts distincts : le clamp jette (erreur de lecture), le percentile
     # marque (prix douteux mais possible). A 1 €/m² il n'y a pas de doute.
@@ -176,10 +188,15 @@ def test_annonce_hors_du_clamp_absolu_reste_jetee(tmp_path):
     assert "z1" not in set(df["Lien"])
 
 
-def test_nettoyage_filtre_outliers(tmp_path):
+def test_seule_une_lecture_trop_basse_est_jetee(tmp_path):
+    # Asymetrie voulue : une lecture trop basse fabrique un faux bon plan
+    # spectaculaire, une lecture trop haute ne fabrique rien (decote positive,
+    # eliminee par le seuil). Seule la premiere doit disparaitre.
     lignes = [
-        [500, 40, "Vannes", 2, 4, "Appt 40 m2 Vannes", "u1", "paruvendu"],     # 12.5 €/m² OK
-        [5000, 40, "Vannes", 2, 4, "Appt luxe 40 m2 Vannes", "u2", "paruvendu"],  # 125 €/m² outlier
+        [500, 40, "Vannes", 2, 4, "Appt 40 m2 Vannes", "u1", "paruvendu"],      # 12.5 €/m²
+        [5000, 40, "Vannes", 2, 4, "Appt luxe 40 m2 Vannes", "u2", "paruvendu"],  # 125 €/m²
+        [4, 40, "Vannes", 2, 4, "Appt prix illisible Vannes", "u3", "paruvendu"],  # 0.1 €/m²
     ]
     df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
-    assert len(df) == 1
+
+    assert set(df["Lien"]) == {"u1", "u2"}

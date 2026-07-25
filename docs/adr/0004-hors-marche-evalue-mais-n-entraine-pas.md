@@ -41,11 +41,13 @@ Trois sorts au lieu de deux, sur deux populations au lieu d'une :
 
 | Zone | Sort |
 | --- | --- |
-| Hors du clamp absolu `3 – 60 €/m²` | **Jetée.** Erreur de lecture quasi certaine |
-| Entre le clamp et les percentiles | **Hors marché** : évaluée, pas entraînée |
+| Sous le plancher absolu `3 €/m²` | **Jetée.** Erreur de lecture quasi certaine |
+| Entre le plancher et les percentiles | **Hors marché** : évaluée, pas entraînée |
 | Dans les percentiles | Entraînée **et** évaluée |
 
-Le mot *aberration* ne vaut plus que pour le clamp absolu, qui seul jette encore.
+Le mot *aberration* ne vaut plus que pour le plancher absolu, qui seul jette
+encore. (Le plafond symétrique de la version initiale est tombé — voir la
+révision en fin d'ADR.)
 
 La zone hors marché est **symétrique**. Une annonce chère n'est pas forcément
 aberrante : dans un secteur cossu et peu représenté, elle sort du percentile
@@ -105,12 +107,38 @@ notifications, décidée juste avant, deviendrait un tirage au sort défavorable
 **Plafonner leur nombre** (3 maximum). Écartée : limite la casse sans rien
 résoudre, et le plafond serait arbitraire.
 
+## Révision du 2026-07-25 — le plafond absolu tombe
+
+La version initiale gardait un clamp symétrique `3 – 60 €/m²` qui **jetait** des
+deux côtés, et signalait en dette que le plafond « deviendrait le filtre actif à
+Paris ». Mesuré depuis : il jetait **125 logements sur 569, soit 22 % du marché
+parisien**. Pas des anomalies — `Paris 10e, 45 m², 2 711 €` à 60,2 €/m², et des
+studios de 9 à 16 m² entre 70 et 90 €/m², ordinaires dans cette ville. Le clamp
+faisait donc à Paris exactement ce que cet ADR refuse au percentile : supprimer
+des logements réels avant toute estimation, et des deux populations à la fois.
+
+**Le plafond est retiré. Le plancher à 3 €/m² reste.** L'asymétrie tient à ce
+que chaque erreur produit :
+
+- Une lecture trop **basse** fabrique un faux bon plan spectaculaire — le bug
+  `_num` sur l'espace fine, « 4 600 € » lu 4. Elle doit être arrêtée avant de
+  sortir.
+- Une lecture trop **haute** ne fabrique rien : sa décote est positive, le seuil
+  `-15 %` l'élimine. Son seul dégât possible était d'entraîner le modèle, et le
+  percentile l'en empêche déjà en la marquant hors marché.
+
+Conséquence mesurée : Paris entraîne sur 539 annonces au lieu de 420, et la
+borne haute du marché observé passe de 59,3 à 106,6 €/m² — non parce que des
+valeurs absurdes sont entrées dans le calcul, mais parce qu'un cinquième du
+marché en était exclu. Vannes ne bouge pas d'un chiffre (8,2 – 23,0 dans les
+deux cas), ce qui était la condition pour toucher à ce réglage.
+
 ## Dette relevée en passant, non traitée ici
 
-- `dropna(subset=["Pieces"])` supprime **741 lignes sur 1 319** du corpus Paris,
-  soit 56 %. Le DPE est imputé, le nombre de pièces non. C'est un ordre de
-  grandeur au-dessus de tout ce que cet ADR discute.
-- Le clamp absolu `PRIX_M2_PLAFOND = 60` a été calibré sur Vannes. Le percentile
-  97,5 du corpus Paris nettoyé vaut 59,3 €/m² : sur un run parisien, le clamp
-  deviendrait le filtre actif à la place du percentile, contrairement à ce que
-  décrit le commentaire de `model.py`.
+- ~~`dropna(subset=["Pieces"])` supprime 741 lignes sur 1 319 du corpus Paris.~~
+  **Faux, corrigé le 2026-07-25.** Ventilation de ces 741 lignes par titre : 405
+  bureaux, 223 boutiques et « autres », 94 locaux, 18 parkings, 1 entrepôt.
+  **Zéro logement.** Ce `dropna` ne perdait pas de données, il rattrapait les
+  non-logements du bug corrigé par la révision de l'ADR 0003. Sur un corpus
+  Vannes il coûte 3 lignes sur 68, dues à un « Pièce » au singulier chez
+  Ouest-France, corrigé depuis.
