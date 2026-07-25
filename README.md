@@ -95,6 +95,50 @@ somewhere else.
   `output/cache_of.json` so re-runs skip already-seen listings (much faster,
   fewer requests).
 
+## Running it on a schedule
+
+`--profil <name>` replays a saved search with no prompts, which is the form to
+schedule. Ready-made units live in [`deploy/`](deploy/); each one carries its
+install commands in its header.
+
+Two constraints shape every option below. The scraper drives a **visible**
+Chromium — DataDome blocks headless — so the run needs a display. And a
+notification nobody reads is a run wasted: pick a remote channel (Discord is the
+least setup) rather than `terminal` or `macos`, so the deals reach you whether
+or not you are at the machine.
+
+| OS | Use | Missed runs |
+|----|-----|-------------|
+| macOS | `deploy/com.rent-estimator.daily.plist` (LaunchAgent) | run on wake |
+| Linux | `deploy/rent-estimator.{service,timer}` (systemd user timer) | run at next boot (`Persistent=true`) |
+| Windows | Task Scheduler, see below | *Run task as soon as possible after a scheduled start is missed* |
+
+**Why not cron on macOS.** `cron` runs detached from the logged-in graphical
+session, so a windowed Chromium starts badly or not at all, and it needs Full
+Disk Access granted to `/usr/sbin/cron` to boot. Above all: if the Mac is asleep
+at the scheduled time, cron skips the slot and never catches up. On a laptop
+closed overnight, that is the difference between a tool that runs and one that
+never does. `launchd` runs the missed job on wake.
+
+**Headless Linux servers** need a virtual display — the unit calls `xvfb-run`
+for that (`apt install xvfb`). On a desktop session with a real display, drop
+the prefix.
+
+**Windows**, once a day at 08:00:
+
+```powershell
+schtasks /create /tn "rent-estimator" /sc daily /st 08:00 ^
+  /tr "C:\path\to\repo\.venv\Scripts\rent-estimator.exe --profil Vannes-2"
+```
+
+**Why not CI.** GitHub Actions cannot run this: beyond the headless problem, a
+datacenter IP is blocked by DataDome within seconds. CI is for the test suite,
+not for scraping.
+
+Nothing watches the terminal on a scheduled run, so a site changing its markup
+would fail in silence. The macOS unit writes to `output/run.log`; systemd keeps
+it in `journalctl --user -u rent-estimator`.
+
 ## Tests
 
 ```bash

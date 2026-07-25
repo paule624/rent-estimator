@@ -1,0 +1,33 @@
+# Linux: one run of the estimator. Paired with rent-estimator.timer.
+#
+# The scraper drives a *visible* Chromium (DataDome blocks headless), so on a
+# headless machine it needs a virtual display: that is what xvfb-run provides.
+# On a desktop session with a real display, drop the xvfb-run prefix.
+#
+# Install (user unit, no root):
+#   mkdir -p ~/.config/systemd/user
+#   sed 's|/PATH/TO/REPO|'"$PWD"'|g; s|PROFILE_NAME|Vannes-2|g' \
+#       deploy/rent-estimator.service > ~/.config/systemd/user/rent-estimator.service
+#   cp deploy/rent-estimator.timer ~/.config/systemd/user/
+#   systemctl --user enable --now rent-estimator.timer
+#
+#   # keep the timer alive when you are not logged in:
+#   sudo loginctl enable-linger "$USER"
+#
+# Run it now:      systemctl --user start rent-estimator.service
+# Read the log:    journalctl --user -u rent-estimator.service -n 50
+# Remove:          systemctl --user disable --now rent-estimator.timer
+
+[Unit]
+Description=Rent estimator — scrape listings and flag under-valued deals
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/PATH/TO/REPO
+ExecStart=/usr/bin/xvfb-run -a /PATH/TO/REPO/.venv/bin/rent-estimator --profil PROFILE_NAME
+
+# A scrape of Paris runs through 20 arrondissements with a wait on every page.
+# Without this, a hung browser would sit there until the next scheduled run.
+TimeoutStartSec=2h

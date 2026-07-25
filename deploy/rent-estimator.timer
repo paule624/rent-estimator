@@ -1,0 +1,17 @@
+# Linux: fire rent-estimator.service every morning.
+#
+# Persistent=true is the counterpart of what launchd does on macOS: if the
+# machine was off at 08:00, the run happens at the next boot instead of being
+# skipped for the day.
+
+[Unit]
+Description=Run the rent estimator every morning
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+# Spreads the load and looks less like a bot hitting the sites on the dot.
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target
