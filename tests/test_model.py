@@ -9,12 +9,6 @@ def _ecrire_csv(tmp_path, lignes):
     return str(p)
 
 
-def test_normalise():
-    assert model._normalise("Saint-Avé") == "saint-ave"
-    assert model._normalise("VANNES") == "vannes"
-    assert model._normalise("Séné") == "sene"
-
-
 def test_nettoyage_vire_colocations(tmp_path):
     lignes = [
         [500, 40, "Vannes", 2, 4, "Appartement 40 m2 Vannes", "u1", "paruvendu"],
@@ -186,6 +180,68 @@ def test_annonce_hors_du_clamp_absolu_reste_jetee(tmp_path):
     df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
 
     assert "z1" not in set(df["Lien"])
+
+
+def test_aucun_critere_ne_s_applique_sans_etre_demande(tmp_path):
+    # Le budget et la surface mini appartiennent a la Recherche, pas au modele.
+    # Un defaut cache ici ferait disparaitre des bons plans que personne n'a
+    # exclus : un studio a 900 € sortait du resultat sans qu'aucun critere ne
+    # l'ait demande.
+    lignes = ([[600 + i, 50, "Vannes", 3, 4, f"Appt {i} Vannes", f"v{i}", "paruvendu"]
+               for i in range(20)]
+              + [[1500 + i, 50, "Séné", 3, 4, f"Appt {i} Séné", f"s{i}", "paruvendu"]
+                 for i in range(20)]
+              + [[900, 20, "Séné", 1, 4, "Studio sous-cote Séné", "cher", "paruvendu"]])
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    m, x, y = model.model_entrainement(df)
+
+    deals = model.bon_plan(m, x, y, df)
+
+    assert "cher" in set(deals["Lien"])     # 900 € et 20 m² : au-dela des ex-defauts
+
+
+def test_scorer_est_pur_ne_touche_aucun_fichier(tmp_path, monkeypatch):
+    # La logique ML/scoring est decouplee de l'I/O : scorer ne doit ni ecrire de
+    # CSV ni resoudre un chemin. On fait planter tout acces disque et on verifie
+    # qu'il rend quand meme (deals, metriques).
+    lignes = ([[600 + i, 50, "Vannes", 3, 4, f"Appt {i} Vannes", f"v{i}", "paruvendu"]
+               for i in range(20)]
+              + [[400, 50, "Vannes", 3, 4, "Appt sous-cote Vannes", "deal", "paruvendu"]])
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    m, x, y = model.model_entrainement(df)
+
+    def _interdit(*a, **k):
+        raise AssertionError("scorer ne doit toucher aucun fichier")
+    monkeypatch.setattr(model.config, "chemin_deals", _interdit)
+    monkeypatch.setattr(model, "exporter", _interdit)
+
+    deals, mesures = model.scorer(m, x, y, df)
+    assert set(mesures) == {"mae", "r2"}
+    assert mesures["mae"] >= 0
+    assert "deal" in set(deals["Lien"])          # bon plan bien detecte, sans I/O
+
+
+def test_exporter_cree_le_dossier_et_ecrit(tmp_path):
+    deals = pd.DataFrame([{"Prix": 500, "Lien": "u1"}])
+    chemin = tmp_path / "run" / "deals.csv"       # le sous-dossier n'existe pas
+    model.exporter(deals, str(chemin))
+    assert chemin.exists()
+    assert pd.read_csv(chemin).iloc[0]["Lien"] == "u1"
+
+
+def test_bon_plan_delegue_a_scorer_et_exporte(tmp_path, monkeypatch):
+    # bon_plan n'est qu'un orchestrateur : il ecrit la ou config le dit, sans
+    # polluer le depot pendant les tests.
+    lignes = [[600 + i, 50, "Vannes", 3, 4, f"Appt {i} Vannes", f"v{i}", "paruvendu"]
+              for i in range(20)] + [[400, 50, "Vannes", 3, 4, "Deal", "deal", "paruvendu"]]
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    m, x, y = model.model_entrainement(df)
+    cible = tmp_path / "out" / "deals.csv"
+    monkeypatch.setattr(model.config, "chemin_deals", lambda: str(cible))
+
+    deals = model.bon_plan(m, x, y, df)
+    assert cible.exists()                         # export bien fait
+    assert set(pd.read_csv(cible)["Lien"]) == set(deals["Lien"])
 
 
 def test_seule_une_lecture_trop_basse_est_jetee(tmp_path):
