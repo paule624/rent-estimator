@@ -2,6 +2,7 @@
 La config est stockée dans .config.json, jamais commitée.
 Priorité : variable d'environnement > .config.json."""
 import os
+import sys
 import json
 
 RACINE = os.path.dirname(os.path.abspath(__file__))
@@ -74,7 +75,12 @@ def charger():
         try:
             with open(CONFIG_FILE) as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            # On repart d'une config vide plutôt que de crasher, mais on le dit :
+            # un .config.json corrompu ferait sinon disparaître profils et canaux
+            # en silence, et l'utilisateur croirait les avoir perdus.
+            print(f"⚠️  .config.json illisible ({e}) — config ignorée ce run.",
+                  file=sys.stderr)
             return {}
     return {}
 
@@ -83,8 +89,11 @@ def sauver(cfg):
     try:
         with open(CONFIG_FILE, "w") as f:
             json.dump(cfg, f, indent=2)
-    except Exception:
-        pass
+    except Exception as e:
+        # Un échec d'écriture silencieux ferait croire un profil sauvé alors
+        # qu'il est perdu au prochain lancement.
+        print(f"⚠️  Écriture de .config.json échouée ({e}) — modifs non sauvées.",
+              file=sys.stderr)
 
 
 def get(key):

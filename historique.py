@@ -6,6 +6,7 @@ prix et la date. En comparant au passé, on repère :
 - les BAISSES de prix (même lien, prix plus bas qu'avant)
 """
 import os
+import sys
 from datetime import date
 import pandas as pd
 
@@ -29,8 +30,13 @@ def charger_historique():
             if "Commune" in hist.columns and "Secteur" not in hist.columns:
                 hist = hist.rename(columns={"Commune": "Secteur"})
             return hist
-        except Exception:
-            pass
+        except Exception as e:
+            # Historique illisible → on repart à vide, mais on le signale : sans
+            # ça, TOUTES les annonces repasseraient pour nouvelles au prochain
+            # run, noyant la détection des vraies nouveautés.
+            print(f"⚠️  Historique illisible ({e}) — reparti à vide, "
+                  f"toutes les annonces seront vues comme nouvelles.",
+                  file=sys.stderr)
     return pd.DataFrame(columns=COLS)
 
 
