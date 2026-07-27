@@ -10,6 +10,7 @@ import pytest
 
 import config
 import historique
+import canaux
 
 
 @pytest.fixture(autouse=True)
@@ -54,3 +55,13 @@ def test_un_nom_de_profil_devient_un_nom_de_dossier_sur():
 def test_un_nom_vide_ne_cree_pas_de_sous_dossier():
     config.definir_recherche("///")
     assert config.dossier_run() == config.DOSSIER_SORTIE
+
+
+def test_la_notif_envoie_chercher_la_suite_dans_le_bon_dossier():
+    """Ce qui ne tient pas dans la notif est annoncé avec l'endroit où le lire.
+    Depuis le cloisonnement, ce fichier vit dans le dossier de la Recherche :
+    un chemin figé à l'import envoie l'utilisateur sur un fichier absent."""
+    config.definir_recherche("Vannes-2")
+    morceaux = canaux.decouper("\n\n".join(f"bloc {i}" for i in range(500)),
+                               limite=100, max_messages=2)
+    assert "vannes-2" in morceaux[-1]
