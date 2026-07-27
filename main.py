@@ -1,20 +1,23 @@
-import os
 import argparse
 
 import questionary
 
-from scrap import run_scraping
-from model import (nettoyage_donnees, model_entrainement, bon_plan,
-                   MIN_ANNONCES_PAR_SECTEUR)
-import historique
-import notif
+from model import MIN_ANNONCES_PAR_SECTEUR
+import bons_plans
+import canaux
 import config
+import notif
+import recherche
 
 
 
 def entier_ou_none(txt):
     """Valeur saisie, ou None si le champ est laissé vide — un champ vide vaut
-    "pas de contrainte", pas une valeur par défaut cachée."""
+    "pas de contrainte", pas une valeur par défaut cachée.
+
+    `isdigit` accepte les seuls entiers positifs ; "10.5" ou "-5" tomberaient
+    donc sur None. Ce n'est pas un trou : `valider_entier_optionnel` les rejette
+    en amont dans les prompts. Ne pas appeler cette fonction sans ce garde-fou."""
     t = str(txt).strip() if txt is not None else ""
     return int(t) if t.isdigit() else None
 
@@ -26,8 +29,24 @@ def valider_entier_optionnel(txt):
     return True if t == "" or t.isdigit() else "Entre un nombre, ou laisse vide"
 
 
+# Deux issues d'un prompt, distinctes d'une vraie valeur (y compris None = "pas
+# de contrainte") : tout abandonner, ou valider le récapitulatif.
+ABANDON = object()
+VALIDER = object()
+
+# L'ordre des questions du flux « nouvelle recherche ». Sert aussi de colonne au
+# récapitulatif : une seule liste, pas deux qui divergeraient.
+_CHAMPS = ["ville", "km", "prix_max", "surface_min", "canal"]
+
+_NUM_LABELS = {
+    "km": ("Rayon (km) · vide = la commune seule", "ex : 10"),
+    "prix_max": ("Budget max (€/mois) · vide = sans plafond", "ex : 700"),
+    "surface_min": ("Surface mini (m²) · vide = sans minimum", "ex : 33"),
+}
+
+
 def _canal_choices():
-    return [questionary.Choice(label, value=canal) for canal, label in notif.CANAUX.values()]
+    return [questionary.Choice(c.libelle, value=nom) for nom, c in canaux.CANAUX.items()]
 
 
 def _profil_label(nom, p):
@@ -36,39 +55,127 @@ def _profil_label(nom, p):
     return f"{nom} · {rayon} · {budget} · {p['canal']}"
 
 
-def profil_vers_params(p):
-    return p["ville"], p["km"], p["prix_max"], p["surface_min"], p["canal"]
+def profil_vers_recherche(p, nom=None):
+    """Un Profil sauvegardé est une Recherche nommée plus son Canal."""
+    return recherche.Recherche(
+        ville=p["ville"], km=p["km"], prix_max=p["prix_max"],
+        surface_min=p["surface_min"], canal=p["canal"], nom=nom)
 
 
 # ── flux « nouvelle recherche » ──────────────────────────────
-def _demander_entier(message, exemple):
-    """Prompt numérique dont l'exemple reste grisé : laisser vide = None."""
-    return entier_ou_none(questionary.text(
-        message, placeholder=exemple, validate=valider_entier_optionnel).ask())
+# On corrige une saisie au récapitulatif éditable de fin, pas en cours de route.
+# Chaque prompt vit dans sa propre fonction pour isoler questionary — la logique
+# du récap se teste alors sans lui.
+def _prompt_ville(courant):
+    """Ville : obligatoire. Un champ vide → on redemande plutôt que d'avancer
+    sans ville."""
+    while True:
+        v = questionary.text("Ville", placeholder="ex : Vannes, Paris, Lyon",
+                             default=courant or "").ask()
+        if v is None:          # Ctrl-C
+            return ABANDON
+        v = v.strip()
+        if v:
+            return v
+
+
+def _prompt_entier(champ, courant):
+    """Prompt numérique : vide = None, exemple grisé. La valeur courante préremplit
+    le champ pour la corriger au récap sans tout retaper."""
+    message, exemple = _NUM_LABELS[champ]
+    defaut = "" if courant is None else str(courant)
+    txt = questionary.text(message, placeholder=exemple, default=defaut,
+                           validate=valider_entier_optionnel).ask()
+    if txt is None:            # Ctrl-C
+        return ABANDON
+    return entier_ou_none(txt)
+
+
+def _prompt_canal(courant):
+    sel = questionary.select("Où recevoir les bons plans ?",
+                             choices=_canal_choices(), default=courant).ask()
+    return ABANDON if sel is None else sel
+
+
+def _demander_champ(champ, courant):
+    """Aiguille vers le bon prompt selon le champ. Seul point que les tests
+    remplacent pour piloter tout le flux."""
+    if champ == "ville":
+        return _prompt_ville(courant)
+    if champ == "canal":
+        return _prompt_canal(courant)
+    return _prompt_entier(champ, courant)
+
+
+def _collecter_champs():
+    """Pose les questions dans l'ordre. Rend le dict des valeurs, ou None si
+    abandon."""
+    v = {}
+    for champ in _CHAMPS:
+        res = _demander_champ(champ, None)
+        if res is ABANDON:
+            return None
+        v[champ] = res
+    if v["km"] is None:
+        v["km"] = 0            # la commune seule, sans élargissement
+    return v
+
+
+def _resume_champ(champ, val):
+    """Ligne du récap pour un champ, un vide dit en clair (« sans plafond »).
+
+    Un if/elif, pas un dict littéral : celui-ci évaluerait `CANAUX[val]` pour
+    tous les champs à la fois, et plantait sur la ville (val = un nom de ville,
+    pas de canal)."""
+    if champ == "ville":
+        return f"ville : {val}"
+    if champ == "km":
+        return f"rayon : {f'{val}km' if val else 'commune seule'}"
+    if champ == "prix_max":
+        return f"budget max : {f'≤{val}€' if val else 'sans plafond'}"
+    if champ == "surface_min":
+        return f"surface mini : {f'≥{val}m²' if val else 'sans minimum'}"
+    return f"canal : {canaux.CANAUX[val].libelle}"
+
+
+def _choisir_champ_a_corriger(v):
+    """Menu du récap : rend le champ à re-poser, VALIDER pour lancer, None si
+    Ctrl-C. Isolé pour que _reviser se teste sans questionary."""
+    choix = [questionary.Choice("✓ Lancer la recherche", value=VALIDER)]
+    choix += [questionary.Choice(f"Modifier {_resume_champ(c, v[c])}", value=c)
+              for c in _CHAMPS]
+    return questionary.select("Récapitulatif — corriger un champ ?", choices=choix).ask()
+
+
+def _reviser(v):
+    """Récap éditable : re-pose un champ à la demande jusqu'à validation. Rend le
+    dict validé, ou None si abandon."""
+    while True:
+        sel = _choisir_champ_a_corriger(v)
+        if sel is None:        # Ctrl-C
+            return None
+        if sel is VALIDER:
+            return v
+        res = _demander_champ(sel, v[sel])
+        if res is ABANDON:
+            return None
+        if sel == "km" and res is None:
+            res = 0
+        v[sel] = res
 
 
 def nouvelle_recherche():
-    # Seule la ville est obligatoire : sans elle il n'y a rien à chercher.
-    ville = None
-    while not ville:
-        ville = questionary.text("Ville", placeholder="ex : Vannes, Paris, Lyon").ask()
-        if ville is None:      # Ctrl-C
-            return None
-        ville = ville.strip()
-
-    km = _demander_entier("Rayon (km) · vide = la commune seule", "ex : 10")
-    prix_max = _demander_entier("Budget max (€/mois) · vide = sans plafond", "ex : 700")
-    surface_min = _demander_entier("Surface mini (m²) · vide = sans minimum", "ex : 33")
-    if km is None:
-        km = 0                 # la commune seule, sans élargissement
-    canal = questionary.select("Où recevoir les bons plans ?", choices=_canal_choices()).ask()
-    if canal is None:
+    v = _collecter_champs()
+    if v is None:
         return None
-    notif.assurer_config(canal)
+    v = _reviser(v)
+    if v is None:
+        return None
+    # Le canal n'est assuré qu'une fois figé : inutile de configurer un webhook
+    # qu'une correction au récap remplacerait.
+    canaux.assurer_config(v["canal"])
 
-    profil = {"ville": ville, "km": km, "prix_max": prix_max,
-              "surface_min": surface_min, "canal": canal}
-
+    profil = {c: v[c] for c in _CHAMPS}
     if questionary.confirm("Sauver cette recherche comme profil ?", default=True).ask():
         _sauver_profil_interactif(profil)
     return profil
@@ -142,20 +249,25 @@ def _nom_recherche(profil):
     return profil["ville"]
 
 
-def recolte_parametres():
-    """Renvoie (ville, km, prix_max, surface_min, canal, interactif, recherche)
-    ou None si abandon.
-    `interactif` = True si on est passé par le menu (→ demander confirmation avant Chrome).
-    `recherche` nomme le sous-dossier de sortie : le profil quand il y en a un,
-    la ville sinon."""
+def _parser():
+    """Les canaux acceptés se lisent dans le registre : une liste recopiée ici
+    finissait par diverger du menu, qui offrait alors un canal que la ligne de
+    commande refusait."""
     p = argparse.ArgumentParser(description="Détecteur de locations sous-cotées (France).")
     p.add_argument("--ville")
     p.add_argument("--km", type=int)
     p.add_argument("--max", type=int, dest="prix_max")
     p.add_argument("--surface-min", type=int, dest="surface_min")
-    p.add_argument("--notif", choices=["terminal", "macos", "telegram", "email", "discord"])
+    p.add_argument("--notif", choices=list(canaux.CANAUX))
     p.add_argument("--profil", help="Rejoue un profil sauvegardé sans menu (pour cron)")
-    a = p.parse_args()
+    return p
+
+
+def recolte_parametres():
+    """Renvoie (Recherche, interactif) ou None si abandon.
+    `interactif` = True si on est passé par le menu (→ demander confirmation
+    avant Chrome)."""
+    a = _parser().parse_args()
 
     # Non-interactif : rejouer un profil (cron)
     if a.profil:
@@ -164,16 +276,17 @@ def recolte_parametres():
             print(f"Profil '{a.profil}' introuvable. Existants : {list(config.charger_profils())}")
             return None
         config.set_dernier_profil(a.profil)
-        return profil_vers_params(prof) + (False, a.profil)
+        return profil_vers_recherche(prof, nom=a.profil), False
 
     # Non-interactif : flags explicites. Un flag omis vaut "pas de contrainte",
     # comme un champ laissé vide dans le menu — une même règle pour les deux
     # modes. `is not None` et pas `or` : --km 0 est un choix, pas un vide.
     if a.ville is not None:
         canal = a.notif or "terminal"
-        notif.assurer_config(canal)
-        return (a.ville, a.km if a.km is not None else 0,
-                a.prix_max, a.surface_min, canal, False, a.ville)
+        canaux.assurer_config(canal)
+        return recherche.Recherche(
+            ville=a.ville, km=a.km if a.km is not None else 0, prix_max=a.prix_max,
+            surface_min=a.surface_min, canal=canal), False
 
     # Interactif : menu profils
     print("=== Rent Estimator — Détecteur de bons plans location ===\n")
@@ -181,7 +294,7 @@ def recolte_parametres():
     if profil is None:
         return None
     print()
-    return profil_vers_params(profil) + (True, _nom_recherche(profil))
+    return profil_vers_recherche(profil, nom=_nom_recherche(profil)), True
 
 
 def _afficher_lignes(df):
@@ -203,11 +316,7 @@ def afficher_deals(deals):
         print("  Essaie d'élargir : budget +, surface -, ou rayon +.")
         print("=" * 60)
         return
-    if "HorsMarche" in deals.columns:
-        hors = deals["HorsMarche"].astype(bool)
-        marche, a_verifier = deals[~hors], deals[hors]
-    else:
-        marche, a_verifier = deals, deals.iloc[0:0]
+    marche, a_verifier = bons_plans.scinder(deals)
 
     print(f"  {len(marche)} BON(S) PLAN(S) — triés par décote")
     print("=" * 60)
@@ -227,49 +336,27 @@ def main():
     if params is None:
         print("Abandon.")
         return
-    ville, km, prix_max, surface_min, canal, interactif, recherche = params
-    # Chaque recherche a son sous-dossier : sans ça un run sur Paris écrase les
-    # données de Vannes, et les deux historiques se mélangent.
-    config.definir_recherche(recherche)
-    criteres = " · ".join([
-        ville,
-        f"{km}km" if km else "commune seule",
-        f"≤{prix_max}€" if prix_max else "sans plafond",
-        f"≥{surface_min}m²" if surface_min else "sans surface mini",
-    ])
+    cherchee, interactif = params
 
     if interactif:
-        print(f"\n▶ Recherche : {criteres} · notif {canal}")
+        print(f"\n▶ Recherche : {cherchee.resume()} · notif {cherchee.canal}")
         print("  Une fenêtre Chrome va s'ouvrir automatiquement (elle se ferme seule à la fin).")
         if not questionary.confirm("Commencer ?", default=True).ask():
             print("Annulé.")
             return
 
-    print(f"\n1. Web scraping — {criteres}...")
-    fichier = run_scraping(ville=ville, km=km, prix_max=prix_max)
-    if not fichier:
+    resultat = recherche.executer(cherchee)
+    if resultat is None:
         return
 
-    print("\n2. Nettoyage des données...")
-    df = nettoyage_donnees(fichier)
+    afficher_deals(resultat.deals)
 
-    print("\n3. Entraînement du modèle...")
-    model, x, y = model_entrainement(df)
+    if len(resultat.nouveaux) or len(resultat.baisses):
+        print(f"\n🔔 {len(resultat.nouveaux)} nouveau(x) · {len(resultat.baisses)} "
+              f"baisse(s) depuis le dernier run")
+        notif.notifier_deals(resultat.nouveaux, resultat.baisses, canal=cherchee.canal)
 
-    print("\n4. Export des opportunités sous-évaluées...")
-    deals = bon_plan(model, x, y, df, budget_max=prix_max, surface_min=surface_min)
-
-    afficher_deals(deals)
-
-    hist = historique.charger_historique()
-    nouveaux, baisses = historique.detecter(deals, hist)
-    if len(nouveaux) or len(baisses):
-        print(f"\n🔔 {len(nouveaux)} nouveau(x) · {len(baisses)} baisse(s) depuis le dernier run")
-        notif.notifier_deals(nouveaux, baisses, canal=canal)
-    historique.sauver(deals, hist)
-
-    chemin = os.path.abspath(config.chemin_deals())
-    print(f"\n→ Détail complet + liens : {chemin}")
+    print(f"\n→ Détail complet + liens : {resultat.chemin}")
 
 
 if __name__ == "__main__":

@@ -36,3 +36,7 @@ def test_saisie_refusee_si_ce_n_est_pas_un_nombre():
     assert main.valider_entier_optionnel("700") is True
     assert main.valider_entier_optionnel("abc") is not True
     assert main.valider_entier_optionnel("-5") is not True
+    # entier_ou_none rendrait None (= "aucune contrainte") sur ces deux-la : le
+    # validateur doit les intercepter AVANT, sinon un filtre saute en silence.
+    assert main.valider_entier_optionnel("10.5") is not True
+    assert main.valider_entier_optionnel("7km") is not True
