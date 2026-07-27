@@ -187,23 +187,29 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
-Covers parsing helpers, area extraction, SeLoger card parsing (against real
-captured HTML in `tests/fixtures/`), cleaning (colocation removal, dedup, DPE
-imputation, outlier filtering), the history diff logic, and notification
-splitting.
+Covers parsing helpers, sector extraction and its One-Hot key, card parsing for
+SeLoger (against real captured HTML in `tests/fixtures/`) and paruvendu
+(against a reconstructed fixture — see its header), cleaning (colocation
+removal, dedup, DPE imputation, outlier filtering), the history diff logic,
+notification splitting, and a full run replayed from a hand-held DataFrame
+instead of a browser (`tests/test_recherche.py`).
 
 CI runs the same suite on every push and pull request. The scrapers are not
 exercised there — DataDome blocks headless browsers and datacenter IPs — so
-after a change to `scrap.py`, run it once against the real sites before
-trusting a green build.
+after a change to `sources.py` or `scrap.py`, run it once against the real
+sites before trusting a green build.
 
 ## Files
 
-- `main.py` — CLI orchestrator (interactive prompts + flags).
-- `scrap.py` — geo resolver, URL builder, paruvendu + Ouest-France + SeLoger scrapers, cache.
+- `main.py` — CLI: prompts, flags, and terminal rendering.
+- `recherche.py` — a Recherche and its run; `executer()` takes the harvest step as a parameter, so a run replays from a CSV without a browser.
+- `scrap.py` — geo resolver (geo.api.gouv.fr) and browser launch.
+- `sources.py` — one contiguous block per source: its URLs, `lire(html)`, and how it paginates.
+- `secteur.py` — the Secteur: four extractors and the One-Hot key they must agree on.
 - `model.py` — cleaning, preprocessing, ML training, deal extraction.
+- `bons_plans.py` — the market / off-market split shared by terminal and notification.
 - `historique.py` — run history + new-deal / price-drop detection.
-- `notif.py` — notification channels (terminal, macOS, Telegram, email, Discord).
+- `notif.py` — what the message says; `canaux.py` — where it goes (terminal, macOS, Telegram, email, Discord).
 - `config.py` — saved profiles, channel credentials, output paths.
 - `tests/` — pytest suite.
 - `output/` — everything a run produces (git-ignored).

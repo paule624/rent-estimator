@@ -29,8 +29,12 @@ Le journal des annonces déjà vues, servant à détecter les nouveautés et les
 _Avoid_: log, cache
 
 **Secteur**:
-La maille géographique sur laquelle le modèle apprend le prix. Vaut la **commune** dans le cas général, mais l'**arrondissement** pour les villes à arrondissements (Paris, Lyon, Marseille), où toute la ville est une seule commune. C'est la clé One-Hot du modèle.
+La maille géographique sur laquelle le modèle apprend le prix. Vaut la **commune** dans le cas général, mais l'**arrondissement** pour les villes à arrondissements (Paris, Lyon, Marseille), où toute la ville est une seule commune. C'est la clé One-Hot du modèle — et chaque **Source** l'écrivant à sa façon, c'est la clé, pas le libellé, qui doit concorder.
 _Avoid_: quartier, zone, ville
+
+**Source**:
+Un site d'où viennent les annonces (paruvendu, Ouest-France, SeLoger). Une Source dit quelles URLs couvrent une **Recherche**, sait lire une page de résultats, et connaît sa propre façon de paginer — les trois paginent différemment et rien ne peut les unifier là-dessus.
+_Avoid_: scraper, site, provider
 
 **Estimation peu fiable**:
 Marqueur porté par un **Bon plan** dont le **Secteur** a trop peu d'annonces pour une estimation solide. Le bon plan est montré quand même, avec l'aveu d'incertitude — jamais masqué.
@@ -43,6 +47,7 @@ _Avoid_: aberration, outlier, atypique
 ## Relationships
 
 - Un **Profil** fixe une **Recherche** + un **Canal**
+- Un run moissonne toutes les **Sources** ; l'une en panne ne coûte qu'elle-même
 - Un run couvre plusieurs **Secteurs** ; le modèle compare les prix entre eux (One-Hot)
 - Un run produit des **Bons plans**, chacun avec sa **Décote**
 - L'**Historique** distingue les **Bons plans** nouveaux des déjà-vus

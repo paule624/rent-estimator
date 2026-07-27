@@ -76,3 +76,41 @@ aval de l'extraction.
   exige un `"(dept)"` que `"Paris 15"` n'a pas, et compare au département
   recherché (75), ce qui rejette aussi `"Antony (92)"`. Elle doit accepter
   n'importe quel département et le format `"Paris NN"`.
+
+## Correction du 2026-07-25 — le libellé n'a jamais été l'invariant, la clé l'est
+
+Cet ADR demande que « le modèle ne voie qu'un Secteur unifié ». Les extracteurs
+s'en acquittaient pour les **arrondissements**, qui passent tous par le même
+libellé, mais pas pour les **communes** : Ouest-France reconstruit la sienne
+depuis le slug de son URL et rendait `"Saint Ave"` là où paruvendu et SeLoger
+lisent `"Saint-Avé"`.
+
+La normalisation ne réduisait qu'accents et casse, pas le séparateur —
+`"saint ave"` ≠ `"saint-ave"`. Les deux graphies formaient donc **deux
+catégories One-Hot** pour une seule commune : chacune apprenait sur la moitié
+des annonces, et chaque moitié pouvait tomber sous le seuil de fiabilité alors
+que la commune entière était au-dessus. Le commentaire du code affirmait
+l'inverse, en donnant précisément cet exemple.
+
+La clé réduit désormais toute suite de non-alphanumériques à un tiret, et
+`secteur.py` réunit les quatre extracteurs **avec elle** — c'est là, et nulle
+part ailleurs, que l'invariant se vérifie. Un test l'exige explicitement, sur
+un arrondissement et sur une commune.
+
+Conséquence de forme : les clés portent un tiret là où elles portaient un
+espace (`"paris-15e"`). Elles ne sont pas persistées — `SecteurKey` se
+recalcule à chaque nettoyage — mais `FILTRE_SECTEURS`, s'il est renseigné, doit
+suivre.
+
+## Correction du 2026-07-27 — la colonne `CP` n'a pas vu le jour
+
+La conséquence « Schéma data » ci-dessus annonçait que « les sources à CP
+propagent une colonne `CP` ». Ce n'est pas ce qui a été construit. Le schéma
+d'une annonce (`COLONNES`, dans `sources.py`) ne porte aucun `CP` : chaque
+Source dérive le **Secteur** au moment de lire sa page — `secteur.depuis_cp`
+pour SeLoger, `depuis_url_of` pour Ouest-France, `depuis_titre` pour paruvendu
+— et émet directement la colonne `Secteur`. Le code postal n'existe qu'en
+transit dans l'extracteur, jamais comme colonne propagée en aval.
+
+La décision elle-même tient (le CP reste la voie d'extraction par défaut là où
+la source l'expose) ; seule la forme du schéma diffère de ce qui était prévu.
