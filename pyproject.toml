@@ -23,4 +23,5 @@ dev = ["pytest"]
 rent-estimator = "main:main"
 
 [tool.setuptools]
-py-modules = ["main", "scrap", "model", "notif", "historique", "config"]
+py-modules = ["main", "recherche", "scrap", "sources", "secteur", "model",
+              "bons_plans", "notif", "canaux", "historique", "config"]

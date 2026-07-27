@@ -5,6 +5,7 @@ Releve sur le site le 2026-07-25 : la fiche d'un T1 porte "Pièce : 1", pas
 68 du dernier run Vannes, jetees ensuite par le dropna sans laisser de trace.
 """
 import scrap
+import sources
 
 
 def _fiche(lignes):
@@ -15,13 +16,13 @@ def _fiche(lignes):
 
 def test_studio_avec_piece_au_singulier():
     html = _fiche(["Loyer : 510 €", "Surface habitable : 28 m²", "Pièce : 1"])
-    assert scrap._of_caracteristiques(html) == (28, 1)
+    assert sources.caracteristiques_ouestfrance(html) == (28, 1)
 
 
 def test_appartement_avec_pieces_au_pluriel():
     html = _fiche(["Surface habitable : 65 m²", "Pièces : 3"])
-    assert scrap._of_caracteristiques(html) == (65, 3)
+    assert sources.caracteristiques_ouestfrance(html) == (65, 3)
 
 
 def test_fiche_sans_caracteristiques():
-    assert scrap._of_caracteristiques("<html><body></body></html>") == (None, None)
+    assert sources.caracteristiques_ouestfrance("<html><body></body></html>") == (None, None)

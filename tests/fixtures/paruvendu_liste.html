@@ -1,0 +1,55 @@
+<!--
+  Page de résultats paruvendu, RECONSTRUITE à partir des sélecteurs que le
+  scraper visait quand il pilotait Playwright (div.blocAnnonce, div.encoded-lnk,
+  a.hover:no-underline, li.text-xs.text-grey-600, span[class*="NoteEnerg_"]).
+  Ce n'est PAS une capture du site : elle fixe le contrat du parseur, pas la
+  forme réelle des pages. Seul un run réel confirme que le site s'y conforme
+  encore.
+-->
+<html>
+  <body>
+    <div class="listeAnnonces">
+
+      <div class="blocAnnonce">
+        <a class="hover:no-underline text-black"
+           href="/immobilier/annonceimmofulldetail.php?idtt=1">
+          Appartement 52 m2 Paris 15
+        </a>
+        <div class="encoded-lnk">1&#8239;250&#160;€</div>
+        <ul>
+          <li class="text-xs text-grey-600 py-1 px-2 border-1 border-grey-50 rounded-xl bg-grey-50 font-normal">3 pièces</li>
+          <li class="text-xs text-grey-600 py-1 px-2 border-1 border-grey-50 rounded-xl bg-grey-50 font-normal">1 chambre</li>
+        </ul>
+        <span class="NoteEnerg_C">C</span>
+      </div>
+
+      <div class="blocAnnonce">
+        <a class="hover:no-underline text-black"
+           href="https://www.paruvendu.fr/immobilier/annonceimmofulldetail.php?idtt=2">
+          Maison 79 m2 Antony (92)
+        </a>
+        <div class="encoded-lnk">2&#8239;450&#160;€</div>
+        <ul>
+          <li class="text-xs text-grey-600 py-1 px-2 border-1 border-grey-50 rounded-xl bg-grey-50 font-normal">4 pièces</li>
+        </ul>
+        <span class="NoteEnerg_E">E</span>
+      </div>
+
+      <!-- Studio : "1 pièce" au singulier, pas de DPE, et la caractéristique
+           « chambre » affichée AVANT les pièces. -->
+      <div class="blocAnnonce">
+        <a class="hover:no-underline text-black"
+           href="/immobilier/annonceimmofulldetail.php?idtt=3">
+          Studio 18,5 m2 Vannes (56)
+        </a>
+        <div class="encoded-lnk">420&#160;€</div>
+        <ul>
+          <li class="text-xs text-grey-600 py-1 px-2 border-1 border-grey-50 rounded-xl bg-grey-50 font-normal">0 chambre</li>
+          <li class="text-xs text-grey-600 py-1 px-2 border-1 border-grey-50 rounded-xl bg-grey-50 font-normal">1 pièce</li>
+        </ul>
+      </div>
+
+    </div>
+    <p class="text-sm">Annonces 1 à 29 sur 58</p>
+  </body>
+</html>
