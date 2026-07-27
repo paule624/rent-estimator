@@ -71,6 +71,12 @@ def nettoyage_donnees(annonces=None):
     if "Titre" in df.columns:
         masque_coloc = df["Titre"].fillna("").str.contains(r"coloc|chambre", case=False, regex=True)
         df = df[~masque_coloc]
+    # Prix/Surface arrivent parfois en texte ("Nous consulter", "1 200") : une
+    # seule valeur non numérique bascule toute la colonne en dtype object et
+    # fait planter np.log1p à l'entraînement. On coerce d'abord — ce qui n'est
+    # pas un nombre devient NaN et tombe au dropna ci-dessous.
+    df["Prix"] = pd.to_numeric(df["Prix"], errors="coerce")
+    df["Surface"] = pd.to_numeric(df["Surface"], errors="coerce")
     # DPE souvent absent des annonces → on impute au lieu de jeter la ligne
     df = df.dropna(subset=["Prix", "Surface", "Secteur", "Pieces"])
     dpe_median = df["DPE"].median()

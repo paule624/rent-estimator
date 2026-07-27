@@ -244,6 +244,21 @@ def test_bon_plan_delegue_a_scorer_et_exporte(tmp_path, monkeypatch):
     assert set(pd.read_csv(cible)["Lien"]) == set(deals["Lien"])
 
 
+def test_prix_non_numerique_est_coerce_et_n_empeche_pas_l_entrainement(tmp_path):
+    # Une seule valeur texte ("Nous consulter") bascule toute la colonne Prix en
+    # dtype object : np.log1p plantait alors a l'entrainement (crash du run
+    # quotidien). La valeur illisible doit tomber, les autres rester, et le
+    # modele s'entrainer sans erreur.
+    lignes = [[600 + i, 50, "Vannes", 3, 4, f"Appt {i} Vannes", f"u{i}", "paruvendu"]
+              for i in range(40)]
+    lignes.append(["Nous consulter", 45, "Vannes", 2, 4, "Appt sans prix", "z1", "paruvendu"])
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+
+    assert "z1" not in set(df["Lien"])              # prix illisible jete
+    assert str(df["Prix"].dtype).startswith("float")  # colonne bien numerique
+    model.model_entrainement(df)                    # ne doit plus lever de TypeError
+
+
 def test_seule_une_lecture_trop_basse_est_jetee(tmp_path):
     # Asymetrie voulue : une lecture trop basse fabrique un faux bon plan
     # spectaculaire, une lecture trop haute ne fabrique rien (decote positive,
