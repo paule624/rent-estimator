@@ -138,20 +138,23 @@ def _resume_champ(champ, val):
     return f"canal : {canaux.CANAUX[val].libelle}"
 
 
-def _choisir_champ_a_corriger(v):
-    """Menu du récap : rend le champ à re-poser, VALIDER pour lancer, None si
-    Ctrl-C. Isolé pour que _reviser se teste sans questionary."""
-    choix = [questionary.Choice("✓ Lancer la recherche", value=VALIDER)]
+def _choisir_champ_a_corriger(v, label_valider="✓ Lancer la recherche"):
+    """Menu du récap : rend le champ à re-poser, VALIDER pour valider, None si
+    Ctrl-C. Isolé pour que _reviser se teste sans questionary.
+
+    `label_valider` distingue le flux : « Lancer la recherche » à la création,
+    « Enregistrer » quand on édite un profil déjà sauvé."""
+    choix = [questionary.Choice(label_valider, value=VALIDER)]
     choix += [questionary.Choice(f"Modifier {_resume_champ(c, v[c])}", value=c)
               for c in _CHAMPS]
     return questionary.select("Récapitulatif — corriger un champ ?", choices=choix).ask()
 
 
-def _reviser(v):
+def _reviser(v, label_valider="✓ Lancer la recherche"):
     """Récap éditable : re-pose un champ à la demande jusqu'à validation. Rend le
     dict validé, ou None si abandon."""
     while True:
-        sel = _choisir_champ_a_corriger(v)
+        sel = _choisir_champ_a_corriger(v, label_valider)
         if sel is None:        # Ctrl-C
             return None
         if sel is VALIDER:
@@ -195,6 +198,19 @@ def _sauver_profil_interactif(profil):
     print(f"  ✓ Profil '{nom}' sauvé.")
 
 
+def _modifier_profil(nom):
+    """Édite un profil sauvé via le même récap que la création, puis le
+    réenregistre sous le même nom."""
+    v = {c: config.get_profil(nom)[c] for c in _CHAMPS}
+    v = _reviser(v, label_valider="✓ Enregistrer")
+    if v is None:
+        return
+    # Un canal changé peut exiger un webhook : on l'assure une fois figé.
+    canaux.assurer_config(v["canal"])
+    config.sauver_profil(nom, {c: v[c] for c in _CHAMPS})
+    print(f"  ✓ Profil '{nom}' modifié.")
+
+
 def _supprimer_profil_interactif(profils):
     nom = questionary.select(
         "Supprimer quel profil ?",
@@ -228,8 +244,21 @@ def menu_interactif():
             return None
         action, nom = sel
         if action == "profil":
-            config.set_dernier_profil(nom)
-            return config.get_profil(nom)
+            sous = questionary.select(
+                _profil_label(nom, profils[nom]),
+                choices=[
+                    questionary.Choice("▶ Lancer la recherche", value="lancer"),
+                    questionary.Choice("✏️  Modifier", value="modifier"),
+                    questionary.Choice("← retour", value=None),
+                ],
+            ).ask()
+            if sous == "lancer":
+                config.set_dernier_profil(nom)
+                return config.get_profil(nom)
+            if sous == "modifier":
+                _modifier_profil(nom)
+            # retour / Ctrl-C → reboucle sur le menu
+            continue
         if action == "nouveau":
             return nouvelle_recherche()
         if action == "supprimer":

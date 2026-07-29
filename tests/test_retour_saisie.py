@@ -42,7 +42,8 @@ def _recap(monkeypatch, selections, valeurs):
     """Scripte les choix du menu recap et les re-saisies de champ."""
     sel = iter(selections)
     val = iter(valeurs)
-    monkeypatch.setattr(main, "_choisir_champ_a_corriger", lambda v: next(sel))
+    monkeypatch.setattr(main, "_choisir_champ_a_corriger",
+                        lambda v, label_valider="": next(sel))
     monkeypatch.setattr(main, "_demander_champ", lambda champ, courant: next(val))
 
 
@@ -59,7 +60,8 @@ def test_recap_lance_sans_rien_toucher(monkeypatch):
 
 
 def test_recap_abandon(monkeypatch):
-    monkeypatch.setattr(main, "_choisir_champ_a_corriger", lambda v: None)
+    monkeypatch.setattr(main, "_choisir_champ_a_corriger",
+                        lambda v, label_valider="": None)
     assert main._reviser(dict(_BASE)) is None
 
 
