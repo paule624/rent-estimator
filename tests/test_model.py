@@ -1,4 +1,6 @@
 import pandas as pd
+import pytest
+
 import model
 
 
@@ -60,6 +62,17 @@ def test_nettoyage_impute_dpe_manquant(tmp_path):
     df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
     assert len(df) == 2               # la ligne sans DPE n'est PAS jetée
     assert df["DPE"].notna().all()    # DPE imputé
+
+
+def test_trop_peu_d_annonces_leve_donnees_insuffisantes(tmp_path):
+    # Sous le plancher d'apprentissage, entrainer n'a pas de sens : on leve une
+    # exception TYPEE, pas un ValueError anonyme, pour que main la distingue d'un
+    # vrai crash et la traduise en Alerte (cf CONTEXT.md, concept Alerte).
+    lignes = [[600, 50, "Vannes", 3, 4, "Appt Vannes", "u1", "paruvendu"],
+              [610, 51, "Vannes", 3, 4, "Appt Vannes", "u2", "paruvendu"]]
+    df = model.nettoyage_donnees(_ecrire_csv(tmp_path, lignes))
+    with pytest.raises(model.DonneesInsuffisantes):
+        model.model_entrainement(df)
 
 
 def test_le_modele_n_apprend_pas_sur_les_hors_marche(tmp_path):

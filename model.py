@@ -12,6 +12,15 @@ from sklearn.model_selection import cross_val_predict
 import config
 import secteur
 
+
+class DonneesInsuffisantes(Exception):
+    """Un run a moissonné des annonces, mais trop peu survivent au nettoyage
+    pour estimer un marché. Distincte d'une moisson vide (0 annonce, cf
+    `recherche.executer` qui rend None) et d'un crash inattendu : c'est un
+    échec *attendu* — la zone est trop étroite, pas le code cassé. `main` la
+    traduit en Alerte, sans trace ni exit non nul (cf CONTEXT.md)."""
+
+
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # Le rayon géo est déjà géré par l'URL (ray=10 autour de Vannes),
@@ -114,8 +123,9 @@ def model_entrainement(df):
     # `df` — elles seront estimées par bon_plan(), sans avoir pesé ici.
     appris = df[~df["HorsMarche"]] if "HorsMarche" in df.columns else df
     if len(appris) < 5:
-        raise ValueError(f"Seulement {len(appris)} annonces retenues : trop peu pour "
-                         f"entraîner. Élargis le rayon ou la zone.")
+        raise DonneesInsuffisantes(
+            f"seulement {len(appris)} annonce(s) exploitable(s), trop peu pour "
+            f"estimer le marché. Élargis le rayon ou la zone.")
 
     encoder = OneHotEncoder(handle_unknown="ignore")
     y = np.log1p(appris["Prix"])

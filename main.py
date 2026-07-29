@@ -6,6 +6,7 @@ from model import MIN_ANNONCES_PAR_SECTEUR
 import bons_plans
 import canaux
 import config
+import model
 import notif
 import recherche
 
@@ -374,8 +375,30 @@ def main():
             print("Annulé.")
             return
 
-    resultat = recherche.executer(cherchee)
+    # Le run tourne sans témoin quand il est lancé par le planificateur (cron,
+    # launchd) : une Alerte sur le Canal est le seul moyen de savoir qu'il a
+    # échoué. Un échec de source ne compte pas — il est déjà encaissé plus bas
+    # (une source en panne ne coûte qu'elle-même, cf CONTEXT.md) ; ce garde-fou
+    # ne vise que ce qui empêche TOUT le run d'aboutir.
+    try:
+        resultat = recherche.executer(cherchee)
+    except model.DonneesInsuffisantes as e:
+        # Échec attendu : la zone est trop étroite, pas le code cassé. On alerte
+        # et on sort proprement (exit 0) — ce n'est pas un incident.
+        print(f"\n⚠️  {e}")
+        notif.alerter(f"⚠️ {cherchee.ville} : {e}", canal=cherchee.canal)
+        return
+    except Exception as e:
+        # Crash inattendu : on alerte puis on relève. La trace reste dans le log
+        # (le seul témoin d'un run planifié) et l'exit non nul est fidèle.
+        notif.alerter(f"❌ Run planté sur {cherchee.ville} : {e}", canal=cherchee.canal)
+        raise
+
     if resultat is None:
+        # Aucune annonce moissonnée : toutes les sources muettes, ou la zone
+        # ne renvoie rien. Rien à afficher, mais le run mérite son Alerte.
+        print("\n⚠️  Aucune annonce moissonnée.")
+        notif.alerter(f"⚠️ {cherchee.ville} : 0 annonce moissonnée", canal=cherchee.canal)
         return
 
     afficher_deals(resultat.deals)

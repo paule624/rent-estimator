@@ -57,3 +57,12 @@ def notifier_deals(nouveaux, baisses, canal="terminal"):
         return
     resume, detail = _construire(nouveaux, baisses)
     canaux.envoyer(canal, resume, detail)
+
+
+def alerter(message, canal="terminal"):
+    """Émet une Alerte : le signal qu'un run n'a rien pu produire (crash, trop
+    peu d'annonces). Passe par le même Canal que les bons plans, mais n'en est
+    pas un (cf CONTEXT.md). Le terminal reste muet — l'échec est déjà à l'écran
+    ou dans le log ; c'est un canal distant (Discord, Telegram…) que ce signal
+    vise, là où personne ne regarde tourner le run."""
+    canaux.envoyer(canal, message, message)

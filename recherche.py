@@ -56,6 +56,10 @@ class Resultat:
 def executer(recherche, moissonner=scrap.run_scraping):
     """Joue un run entier et rend son Resultat, ou None si rien n'a été moissonné.
 
+    Lève `model.DonneesInsuffisantes` si des annonces sont moissonnées mais trop
+    peu survivent au nettoyage pour estimer : c'est à l'appelant d'en faire une
+    Alerte, l'envoi sur un Canal n'appartient pas ici (cf docstring du module).
+
     `moissonner(recherche) -> DataFrame | None` : le scraping en vrai, un CSV
     de fixture en test."""
     # Cloisonner AVANT toute écriture : sans ça un run sur Paris écrase les

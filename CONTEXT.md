@@ -21,8 +21,12 @@ L'écart en % entre le prix affiché et le loyer estimé (négatif = sous le mar
 _Avoid_: réduction, rabais
 
 **Canal**:
-Le moyen de recevoir les bons plans à la fin d'un run (terminal, macOS, Telegram, Email, Discord).
+Le moyen de recevoir ce qu'un run a à dire — ses **Bons plans**, ou son **Alerte** s'il n'a rien pu produire (terminal, macOS, Telegram, Email, Discord).
 _Avoid_: notif, sortie
+
+**Alerte**:
+Le message qu'un run émet quand il n'a **pas pu** produire de bons plans : crash inattendu, ou trop peu d'annonces pour estimer. Elle part sur le même **Canal** que les bons plans, mais n'en est pas un — c'est un signal technique, pas une affaire. Un run réussi mais sans bon plan ne l'émet PAS : l'absence d'affaire est un résultat normal, pas un incident.
+_Avoid_: erreur, log, notif
 
 **Historique**:
 Le journal des annonces déjà vues, servant à détecter les nouveautés et les baisses de prix.
@@ -48,6 +52,7 @@ _Avoid_: aberration, outlier, atypique
 
 - Un **Profil** fixe une **Recherche** + un **Canal**
 - Un run moissonne toutes les **Sources** ; l'une en panne ne coûte qu'elle-même
+- Un run qui ne peut rien produire (crash, trop peu d'annonces) émet une **Alerte** sur son **Canal** ; un run sans bon plan reste muet
 - Un run couvre plusieurs **Secteurs** ; le modèle compare les prix entre eux (One-Hot)
 - Un run produit des **Bons plans**, chacun avec sa **Décote**
 - L'**Historique** distingue les **Bons plans** nouveaux des déjà-vus
