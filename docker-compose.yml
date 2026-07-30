@@ -1,0 +1,31 @@
+# Déploiement serveur (Raspberry Pi via Dokploy, type Compose).
+#
+# Le service ne fait que vivre (`sleep infinity`). Le scrape est lancé par un
+# Schedule Job Dokploy qui exécute, une fois par jour :
+#
+#   xvfb-run -a rent-estimator --ville Vannes --km 10 --max 700 \
+#            --surface-min 34 --notif discord
+#
+# On passe les critères en flags plutôt que --profil : un profil vit dans
+# .config.json, ancré sur /app, reconstruit à chaque déploiement — il
+# disparaîtrait. Les flags ne dépendent d'aucun fichier persistant.
+services:
+  scraper:
+    build: .
+    restart: unless-stopped
+    command: sleep infinity
+    environment:
+      # Chromium en root (conteneur) exige --no-sandbox ; voir scrap.py.
+      - RENT_ESTIMATOR_NO_SANDBOX=1
+      # Tout ce qu'un run produit va sur le volume — l'Historique doit survivre
+      # aux rebuilds, sinon chaque run revoit tout le marché comme nouveau.
+      - RENT_ESTIMATOR_OUTPUT=/data
+      # Le conteneur est en UTC par défaut : sans ça, 8h UTC = 10h à Paris l'été.
+      - TZ=Europe/Paris
+      # Secret : défini dans l'onglet Environment de Dokploy, jamais en git.
+      - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
+    volumes:
+      - estimator-data:/data
+
+volumes:
+  estimator-data: {}

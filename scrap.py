@@ -6,6 +6,7 @@ faire — ses URLs, la lecture de ses pages, sa façon de paginer — vit dans
 sources.py, un bloc par source.
 """
 import json
+import os
 import re
 import unicodedata
 import urllib.parse
@@ -87,7 +88,15 @@ def run_scraping(recherche):
     with sync_playwright() as p:
         # headless=False : Ouest-France utilise DataDome (anti-bot) qui bloque le
         # mode headless. Une fenêtre Chrome s'ouvre pendant le scrape.
-        browser = p.chromium.launch(headless=False)
+        #
+        # chromium_sandbox : désactivé en conteneur seulement. Chromium refuse de
+        # démarrer en root sans --no-sandbox ; or l'image Docker tourne en root.
+        # Piloté par l'env RENT_ESTIMATOR_NO_SANDBOX pour ne rien changer en local
+        # (sandbox actif sur macOS). Sous Docker le scrape tourne headful sur un
+        # écran virtuel Xvfb — pas de display réel sur le serveur.
+        browser = p.chromium.launch(
+            headless=False,
+            chromium_sandbox=not os.environ.get("RENT_ESTIMATOR_NO_SANDBOX"))
         context = browser.new_context(user_agent=USER_AGENT, locale="fr-FR",
                                       viewport={"width": 1366, "height": 900})
         context.add_init_script(
