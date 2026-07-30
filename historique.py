@@ -72,6 +72,10 @@ def sauver(deals, hist):
         return
     aujourdhui = deals[["Lien", "Prix", "Secteur", "Surface", "Pieces", "Decote"]].copy()
     aujourdhui["Date"] = date.today().isoformat()
-    maj = pd.concat([hist, aujourdhui], ignore_index=True)
+    # Au 1er run l'historique est vide (colonnes seules) : le concaténer
+    # déclenche le FutureWarning pandas sur les entrées vides. On prend alors
+    # directement les deals du jour.
+    maj = (aujourdhui if hist is None or hist.empty
+           else pd.concat([hist, aujourdhui], ignore_index=True))
     config.assurer_dossier_sortie()
     maj.to_csv(chemin(), index=False)

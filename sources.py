@@ -553,5 +553,9 @@ def moissonner_toutes(context, recherche, ville, sources=SOURCES):
             except Exception as e:
                 print(f"[{source.nom}] Exception {e}")
 
-    remplies = [f for f in frames if not f.empty]
+    # `not f.empty` ne suffit pas : une source peut rendre des lignes toutes NA
+    # (frame non vide mais sans donnée). Concaténer une telle frame ne change
+    # rien au résultat mais déclenche le FutureWarning pandas sur l'inférence de
+    # dtype ; on l'écarte comme les vides.
+    remplies = [f for f in frames if not f.empty and not f.isna().all(axis=None)]
     return pd.concat(remplies, ignore_index=True) if remplies else None
