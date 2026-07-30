@@ -124,46 +124,89 @@ scheduled run reads and writes the same history as a manual one. Set
 
 ## Running it on a schedule
 
-`--profil <name>` replays a saved search with no prompts, which is the form to
-schedule. Ready-made units live in [`deploy/`](deploy/); each one carries its
-install commands in its header.
-
 Two constraints shape every option below. The scraper drives a **visible**
 Chromium — DataDome blocks headless — so the run needs a display. And a
 notification nobody reads is a run wasted: pick a remote channel (Discord is the
 least setup) rather than `terminal` or `macos`, so the deals reach you whether
 or not you are at the machine.
 
+### Recommended: a container on an always-on box
+
+The scheduled run lives in a Docker container on a small always-on machine — a
+Raspberry Pi here, managed by [Dokploy](https://dokploy.com). It is the default
+because it decouples the detection from a personal laptop: a Mac asleep in a bag
+at 08:00 crashed the run with `BrowserType.launch: Timeout` — no display to
+attach the window to. See [ADR 0005](docs/adr/0005-scrape-planifie-headful-sous-xvfb-en-conteneur.md).
+
+The visible-Chromium constraint is met with a **virtual display**: the run is
+launched under `xvfb-run`, so Chromium runs headful on an in-memory framebuffer
+and DataDome sees a real browser. A home residential IP helps here where a
+datacenter one would be flagged. Validated: a first run returned 163 listings
+including 25 from Ouest-France, the DataDome-guarded source.
+
+The image ([`Dockerfile`](Dockerfile)) builds on Playwright's official
+multi-arch image (Chromium + `xvfb` preinstalled, arm64 covered). The service
+([`docker-compose.yml`](docker-compose.yml)) just stays alive (`sleep infinity`);
+a **Dokploy Schedule Job** `docker exec`s the scrape once a day:
+
+```
+xvfb-run -a rent-estimator --ville Vannes --km 10 --max 700 --surface-min 34 --notif discord
+```
+
+Explicit flags, not `--profil`: a saved profile lives in `.config.json`, anchored
+on `/app` and rebuilt away on every deploy. Only the **Historique** persists, on
+a named volume via `RENT_ESTIMATOR_OUTPUT=/data`. Set these in Dokploy:
+
+| Key | Value | Why |
+|-----|-------|-----|
+| `DISCORD_WEBHOOK` | *(the webhook)* | secret — Dokploy env, never in git or the image |
+| `RENT_ESTIMATOR_OUTPUT` | `/data` | run artefacts on the persistent volume |
+| `RENT_ESTIMATOR_NO_SANDBOX` | `1` | Chromium refuses to start as root without `--no-sandbox`; the container runs as root |
+| `TZ` | `Europe/Paris` | the container is UTC by default — 08:00 UTC is 10:00 Paris in summer |
+
+### Adding another search
+
+One more search is **one more Schedule Job** — no code, no redeploy, same
+container and volume. Point it at a different city:
+
+```
+xvfb-run -a rent-estimator --ville Rennes --km 15 --max 800 --surface-min 30 --notif discord
+```
+
+Each Recherche keeps its own Historique: `config.definir_recherche` files run
+artefacts under `/data/<city>/` (`/data/vannes/`, `/data/rennes/`), so newness
+detection never compares one market to another. Stagger the cron minutes across
+jobs (`0 8`, `20 8`, `40 8`) so the sites are not all hit on the dot.
+
+**Caveat — two searches on the *same* city.** Under flags the subfolder is the
+city slug, not the filters, so two `--ville Vannes` jobs would share
+`/data/vannes/historique.csv` and merge their histories. Different cities are
+fine. For several searches on one city you need a distinct name per search —
+that is what `--profil` gave (subfolder = profile name); reintroduce
+`.config.json` on the volume if that case comes up.
+
+### Alternatives: self-hosted on your own machine
+
+Without a server, run it on the machine you already have. Ready-made units live
+in [`deploy/`](deploy/); each carries its install commands in its header.
+
 | OS | Use | Missed runs |
 |----|-----|-------------|
-| macOS | `deploy/com.rent-estimator.daily.plist` (LaunchAgent) | run on wake |
 | Linux | `deploy/rent-estimator.{service,timer}` (systemd user timer) | run at next boot (`Persistent=true`) |
 | Windows | Task Scheduler, see below | *Run task as soon as possible after a scheduled start is missed* |
+| macOS | LaunchAgent, `git rm`'d in favour of the container — recover from history if needed | ran on wake |
+
+On a headless Linux box these units also call `xvfb-run` (`apt install xvfb`);
+on a desktop session with a real display, drop the prefix.
 
 **Why not cron on macOS.** `cron` runs detached from the logged-in graphical
 session, so a windowed Chromium starts badly or not at all, and it needs Full
-Disk Access granted to `/usr/sbin/cron` to boot. Above all: if the Mac is asleep
-at the scheduled time, cron skips the slot and never catches up. On a laptop
-closed overnight, that is the difference between a tool that runs and one that
-never does. `launchd` runs the missed job on wake.
-
-**macOS: keep the repo out of `~/Documents`.** That folder — like `~/Desktop`
-and `~/Downloads` — is protected by TCC, and a process started by launchd has no
-access to it. The run dies before Python finishes booting:
-
-```
-PermissionError: [Errno 1] Operation not permitted: '.../.venv/pyvenv.cfg'
-```
-
-Manual runs work regardless, since the terminal already holds that permission,
-so this only ever surfaces on the scheduled run — in the log. Somewhere like
-`~/dev/` carries no such restriction. Granting Full Disk Access to the Python
-interpreter also works, but that interpreter is shared: every script you run
-with it would inherit the same access.
-
-**Headless Linux servers** need a virtual display — the unit calls `xvfb-run`
-for that (`apt install xvfb`). On a desktop session with a real display, drop
-the prefix.
+Disk Access granted to `/usr/sbin/cron` to boot. If the Mac is asleep at the
+scheduled time, cron skips the slot and never catches up — `launchd` runs the
+missed job on wake. And keep the repo out of TCC-protected `~/Documents`,
+`~/Desktop`, `~/Downloads`: a launchd-started process cannot read them and dies
+with `PermissionError: Operation not permitted` on `.venv/pyvenv.cfg` before
+Python finishes booting. Somewhere like `~/dev/` carries no such restriction.
 
 **Windows**, once a day at 08:00:
 
@@ -177,8 +220,8 @@ datacenter IP is blocked by DataDome within seconds. CI is for the test suite,
 not for scraping.
 
 Nothing watches the terminal on a scheduled run, so a site changing its markup
-would fail in silence. The macOS unit writes to `output/run.log`; systemd keeps
-it in `journalctl --user -u rent-estimator`.
+would fail in silence. In the container the Schedule Job output is the log; the
+systemd unit keeps it in `journalctl --user -u rent-estimator`.
 
 ## Tests
 
