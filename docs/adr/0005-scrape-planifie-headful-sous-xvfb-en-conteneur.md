@@ -41,10 +41,12 @@ poste personnel qui doit être ouvert, éveillé et déverrouillé à l'heure di
 
 ## Conséquences
 
-- **La validation DataDome/Xvfb reste à faire.** DataDome pourrait fingerprinter
-  l'écran virtuel (rendu logiciel swiftshader, WebGL). Le premier run vert sur le
-  Pi — présence d'annonces `ouestfrance` dans le total — est ce qui confirme le
-  plan. Tant qu'il n'a pas eu lieu, le mode macAwake (ci-dessous) reste le filet.
+- **Validation DataDome/Xvfb : OK (2026-07-30).** Le premier run dans le
+  conteneur sur le Pi a rendu 163 annonces dont **25 Ouest-France** — le site
+  DataDome passe sous écran virtuel. La crainte du fingerprint swiftshader/WebGL
+  ne s'est pas concrétisée ; l'IP résidentielle y est probablement pour beaucoup.
+  Le mode macAwake (ci-dessous) n'est donc plus le filet actif, juste un repli
+  documenté si le comportement de DataDome change.
 - **L'IP résidentielle française du Pi est un atout** face à DataDome, là où une
   IP datacenter de VPS est plus souvent signalée.
 - **Le mode macOS est retiré du chemin par défaut**, pas effacé : il survit dans
